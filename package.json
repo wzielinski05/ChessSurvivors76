@@ -1,0 +1,15 @@
+{
+	"name": "am76-webgame-template",
+	"private": true,
+	"version": "1.0.0",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"deploy": "vite build && clasp push"
+	},
+	"devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.1.0"
+  }
+}
