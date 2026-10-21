@@ -55,7 +55,12 @@ def build():
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(single_html)
 
-    print(f"[AM76 Single-File Builder] Wygenerowano: {out_path} ({len(single_html)} bajtów)")
+    # index.html (małe litery) dla GitHub Pages i serwerów WWW
+    out_path_gh = os.path.join(dist_dir, "index.html")
+    with open(out_path_gh, "w", encoding="utf-8") as f:
+        f.write(single_html)
+
+    print(f"[AM76 Single-File Builder] Wygenerowano: {out_path} oraz {out_path_gh} ({len(single_html)} bajtów)")
 
 if __name__ == "__main__":
     build()
