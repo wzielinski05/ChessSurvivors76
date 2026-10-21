@@ -245,6 +245,16 @@ export const AudioEngine = {
   // Roszada (Castling) — błyskawiczna zamiana pozycji z klonem
   playCastling() {
     this.zzfx(0.9, 0.02, 360, 0.005, 0.05, 0.18, 0, 1.1, 28, 0, -180, 0.04, 0, 0.1, 0, 0, 0.02);
+  },
+
+  // Ostrzeżenie przed wejściem Bossa (Czarny Król / Czarna Królowa)
+  playBossWarning() {
+    this.zzfx(1.2, 0.01, 110, 0.02, 0.18, 0.42, 2, 1.7, -1.5, 0, -25, 0.12, 0.14, 0.2, 0, 0.05, 0.04, 0.85);
+  },
+
+  // Uderzenie Ręki Arcymistrza kruszące krawędzie szachownicy
+  playGrandmasterSlam() {
+    this.zzfx(1.5, 0.04, 38, 0.004, 0.14, 0.52, 4, 2.1, -0.8, 0, -12, 0.05, 0, 0.65, 0, 0.12, 0.04, 0.85, 0.05);
   }
 };
 

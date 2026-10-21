@@ -2,6 +2,7 @@
 
 import { InputManager } from './input.js';
 import { Game } from './game.js';
+import { StorageEngine } from './storage.js';
 
 // 1. Atrapa bezpieczeństwa dla środowiska lokalnego poza Google Apps Script
 if (!window.google) {
@@ -24,10 +25,9 @@ const V_WIDTH = 960;
 const V_HEIGHT = 720;
 
 const canvas = document.getElementById('gameCanvas');
-canvas.width = V_WIDTH;
-canvas.height = V_HEIGHT;
+let currentDpr = 1;
 
-// Responsywne dopasowanie z zachowaniem proporcji 4:3 (Letterboxing w iframe GAS)
+// Responsywne dopasowanie z zachowaniem proporcji 4:3 oraz obsługą HiDPI/Retina (devicePixelRatio)
 function resizeViewport() {
   const winW = window.innerWidth;
   const winH = window.innerHeight;
@@ -35,6 +35,13 @@ function resizeViewport() {
 
   const displayW = Math.floor(V_WIDTH * scale);
   const displayH = Math.floor(V_HEIGHT * scale);
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (canvas.width !== Math.round(V_WIDTH * dpr) || canvas.height !== Math.round(V_HEIGHT * dpr)) {
+    canvas.width = Math.round(V_WIDTH * dpr);
+    canvas.height = Math.round(V_HEIGHT * dpr);
+    currentDpr = dpr;
+  }
 
   canvas.style.width = `${displayW}px`;
   canvas.style.height = `${displayH}px`;
@@ -46,6 +53,11 @@ resizeViewport();
 const input = new InputManager(canvas, V_WIDTH, V_HEIGHT);
 const game = new Game(canvas, input);
 
+// Asynchroniczne wczytanie profilu gracza z IndexedDB (AM76_CHESS_DB)
+StorageEngine.init().then((profile) => {
+  game.applySavedProfile(profile);
+});
+
 let lastTime = performance.now();
 
 function mainLoop(now) {
@@ -53,6 +65,7 @@ function mainLoop(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
+  game.dpr = currentDpr;
   game.update(dt);
   game.render();
 

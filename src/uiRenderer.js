@@ -1,6 +1,7 @@
-// --- RENDERER INTERFEJSU, ZEGARA SZACHOWEGO, WYBORU TEMPA I SKLEPU GAMBITU (ETAP 2) ---
+// --- RENDERER INTERFEJSU, ZEGARA SZACHOWEGO, WYBORU TEMPA I SKLEPU GAMBITU (ETAP 2 & 3) ---
 
 import { CHESS_TEMPOS, PLAYER_CLASSES, GAMBIT_SHOP_ITEMS } from './chessData.js';
+import { StorageEngine } from './storage.js';
 import { clamp } from './math.js';
 import { drawChessPiece, drawGambitToken } from './sprites.js';
 
@@ -44,12 +45,37 @@ export function renderGameHUD(ctx, game, theme) {
   const displayVal = game.timeTrouble ? game.panicTimer : game.chessClock;
   ctx.fillText(`${displayVal.toFixed(1)}s`, game.width / 2, clockY + 37);
 
-  // Pasek postępu bieżącej fali pod zegarem
-  const waveProg = clamp(game.waveTimer / game.waveDuration, 0, 1);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(clockX, clockY + clockH + 4, clockW, 6);
-  ctx.fillStyle = theme.bulletPlayer;
-  ctx.fillRect(clockX, clockY + clockH + 4, clockW * waveProg, 6);
+  // Pasek postępu bieżącej fali pod zegarem (lub Pasek Zdrowia Bossa!)
+  const activeBoss = game.getActiveBoss ? game.getActiveBoss() : null;
+  if (activeBoss) {
+    const bossBarW = 420;
+    const bossBarH = 18;
+    const bossBarX = (game.width - bossBarW) / 2;
+    const bossBarY = clockY + clockH + 6;
+    const hpRatio = clamp(activeBoss.hp / activeBoss.maxHp, 0, 1);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+    ctx.strokeStyle = theme.uiDanger;
+    ctx.lineWidth = 2;
+    ctx.fillRect(bossBarX, bossBarY, bossBarW, bossBarH);
+    ctx.fillStyle = theme.uiDanger;
+    ctx.fillRect(bossBarX + 2, bossBarY + 2, (bossBarW - 4) * hpRatio, bossBarH - 4);
+    ctx.strokeRect(bossBarX, bossBarY, bossBarW, bossBarH);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px monospace';
+    const bossTitle =
+      activeBoss.type === 'king'
+        ? `👑 MINI-BOSS: CZARNY KRÓL (TARCZA PIONKÓW: ${game.kingShieldCount || 0}) 👑`
+        : `👑 BOSS FINAŁOWY: CZARNA KRÓLOWA & RĘKA ARCYMISTRZA (${game.board.activeGridSize}x${game.board.activeGridSize}) 👑`;
+    ctx.fillText(bossTitle, game.width / 2, bossBarY + 12);
+  } else {
+    const waveProg = clamp(game.waveTimer / game.waveDuration, 0, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(clockX, clockY + clockH + 4, clockW, 6);
+    ctx.fillStyle = theme.bulletPlayer;
+    ctx.fillRect(clockX, clockY + clockH + 4, clockW * waveProg, 6);
+  }
 
   // 2. Lewy górny panel: Klasa figury, Zdrowie, Tarcza Wieży, Zdolność Specjalna i Przedmiot [E]
   ctx.textAlign = 'left';
@@ -234,17 +260,27 @@ export function renderTempoSelectOverlay(ctx, game, theme) {
 
     ctx.font = '11px monospace';
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.fillText(`Telegrafy wrogów: ${t.telegraphBase.toFixed(2)}s`, cx + cardW / 2, cardY + 168);
-    ctx.fillText(`Prędkość figur: ${Math.round(t.enemySpeedMult * 100)}%`, cx + cardW / 2, cardY + 190);
-    ctx.fillText(`Gęstość fal: ${t.spawnCountMult}x`, cx + cardW / 2, cardY + 212);
-    ctx.fillText(`Drop Żetonów: ${Math.round(t.tokenDropMult * 100)}%`, cx + cardW / 2, cardY + 234);
+    ctx.fillText(`Telegrafy wrogów: ${t.telegraphBase.toFixed(2)}s`, cx + cardW / 2, cardY + 162);
+    ctx.fillText(`Prędkość figur: ${Math.round(t.enemySpeedMult * 100)}%`, cx + cardW / 2, cardY + 182);
+    ctx.fillText(`Gęstość fal: ${t.spawnCountMult}x`, cx + cardW / 2, cardY + 202);
+    ctx.fillText(`Drop Żetonów: ${Math.round(t.tokenDropMult * 100)}%`, cx + cardW / 2, cardY + 222);
+
+    // Rekord z IndexedDB (AM76_CHESS_DB)
+    const hs = StorageEngine.profile.highScores[t.id] || { bestWave: 1, bestKills: 0, victories: 0 };
+    ctx.fillStyle = '#55ff99';
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText(
+      `REKORD: FALA ${hs.bestWave} • ZBICIA ${hs.bestKills} • MATY ${hs.victories}`,
+      cx + cardW / 2,
+      cardY + 245
+    );
 
     ctx.fillStyle = isSelected ? theme.bulletPlayer : theme.uiAccent;
     ctx.font = 'bold 12px monospace';
     ctx.fillText(
       isSelected ? '▶ AKTYWNE (KLIKNIJ = START) ◀' : '[ KLIKNIJ ABY WYBRAĆ ]',
       cx + cardW / 2,
-      cardY + 268
+      cardY + 272
     );
   }
 
@@ -258,8 +294,9 @@ export function renderTempoSelectOverlay(ctx, game, theme) {
 
   ctx.fillStyle = theme.uiText;
   ctx.font = '12px monospace';
+  const achCount = StorageEngine.profile.achievements.length;
   ctx.fillText(
-    `Aktualny styl graficzny [T]: ${theme.name}`,
+    `Styl [T]: ${theme.name}   •   Zapis IndexedDB: AM76_CHESS_DB (Osiągnięcia: ${achCount})`,
     game.width / 2,
     py + panelH - 22
   );
@@ -593,12 +630,21 @@ export function renderGameOverOverlay(ctx, game, theme) {
   ctx.fillText(game.gameOverReason, game.width / 2, by + 82);
 
   const cls = PLAYER_CLASSES[game.player.classId];
+  const hs = StorageEngine.profile.highScores[game.tempo.id] || { bestWave: 1, bestKills: 0 };
   ctx.fillStyle = theme.uiAccent;
   ctx.font = 'bold 14px monospace';
   ctx.fillText(
     `TEMPO: ${game.tempo.name}  •  FIGURA: ${cls.name}  •  FALA: ${game.wave}  •  ZBICIA: ${game.kills}`,
     game.width / 2,
-    by + 125
+    by + 122
+  );
+
+  ctx.fillStyle = '#55ff99';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText(
+    `REKORD (${game.tempo.name}): FALA ${hs.bestWave}  •  ZBICIA ${hs.bestKills}  •  ZAPISANO W AM76_CHESS_DB`,
+    game.width / 2,
+    by + 155
   );
 
   ctx.fillStyle = theme.uiText;
@@ -606,7 +652,68 @@ export function renderGameOverOverlay(ctx, game, theme) {
   ctx.fillText(
     '[ SPACJA / R / LPM: ZAGRAJ PONOWNIE ]     [ M: ZMIEŃ TEMPO PARTII ]',
     game.width / 2,
-    by + 195
+    by + 205
+  );
+  ctx.restore();
+}
+
+export function renderVictoryOverlay(ctx, game, theme) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+  ctx.fillRect(0, 0, game.width, game.height);
+
+  const boxW = 580;
+  const boxH = 290;
+  const bx = (game.width - boxW) / 2;
+  const by = (game.height - boxH) / 2;
+
+  ctx.fillStyle = theme.boardFrame;
+  ctx.strokeStyle = theme.bulletPlayer;
+  ctx.lineWidth = 3.5;
+  ctx.fillRect(bx, by, boxW, boxH);
+  ctx.strokeRect(bx, by, boxW, boxH);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = theme.bulletPlayer;
+  ctx.font = 'bold 26px monospace';
+  ctx.fillText('👑 ZWYCIĘSTWO — MAT ARCYMISTRZA! 👑', game.width / 2, by + 48);
+
+  ctx.fillStyle = theme.uiText;
+  ctx.font = '13px monospace';
+  ctx.fillText(
+    'Pokonałeś Czarną Królową i przetrwałeś uderzenia Ręki Arcymistrza!',
+    game.width / 2,
+    by + 82
+  );
+
+  const cls = PLAYER_CLASSES[game.player.classId];
+  ctx.fillStyle = theme.uiAccent;
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText(
+    `TEMPO: ${game.tempo.name}  •  KLASA: ${cls.name}  •  ZBICIA: ${game.kills}  •  ŻETONY: ${game.gambitTokens}`,
+    game.width / 2,
+    by + 124
+  );
+
+  ctx.fillStyle = '#55ff99';
+  ctx.font = 'bold 12px monospace';
+  const achs = StorageEngine.profile.achievements.slice(-2).join(' • ') || 'Mistrz Szachownicy';
+  ctx.fillText(`OSIĄGNIĘCIA (AM76_CHESS_DB): ${achs}`, game.width / 2, by + 160);
+
+  ctx.fillStyle = theme.bulletPlayer;
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText(
+    '[ SPACJA / LPM: KONTYNUUJ W TRYBIE ENDLESS (ODBUDOWA 8x8) ]',
+    game.width / 2,
+    by + 212
+  );
+
+  ctx.fillStyle = theme.uiText;
+  ctx.font = '13px monospace';
+  ctx.fillText(
+    '[ R: NOWA PARTIA ]          [ M: WYBÓR TEMPA ]',
+    game.width / 2,
+    by + 250
   );
   ctx.restore();
 }

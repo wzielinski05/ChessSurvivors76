@@ -11,6 +11,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODULES = [
     "src/themes.js",
     "src/chessData.js",
+    "src/storage.js",
     "src/audio.js",
     "src/math.js",
     "src/pool.js",

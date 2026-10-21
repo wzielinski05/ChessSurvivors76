@@ -387,6 +387,151 @@ export function drawQueenPiece(ctx, x, y, scaleX, scaleY, fill, outline, hitFlas
   ctx.restore();
 }
 
+// Rysowanie sylwetki Czarnego Króla (The Mad King — Mini-Boss z Krzyżem Królewskim)
+export function drawKingPiece(ctx, x, y, scaleX, scaleY, fill, outline, hitFlash, glowColor = null) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+  ctx.beginPath();
+  ctx.ellipse(0, 14, 20 * scaleX, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (glowColor) {
+    drawFauxGlow(ctx, 0, -6, 26, glowColor, 0.28);
+  }
+
+  ctx.scale(scaleX, scaleY);
+
+  const mainFill = hitFlash > 0 ? '#ffffff' : fill;
+  const mainStroke = hitFlash > 0 ? '#ffffff' : outline;
+
+  ctx.fillStyle = mainFill;
+  ctx.strokeStyle = mainStroke;
+  ctx.lineWidth = 2.8;
+  ctx.lineJoin = 'round';
+
+  // 1. Monumentalna podstawa królewska
+  ctx.beginPath();
+  ctx.ellipse(0, 11, 17, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 2. Płaszcz i korona Króla
+  ctx.beginPath();
+  ctx.moveTo(-14, 10);
+  ctx.quadraticCurveTo(-7, 0, -9, -12);
+  ctx.lineTo(-14, -22);
+  ctx.lineTo(-6, -18);
+  ctx.lineTo(0, -24);
+  ctx.lineTo(6, -18);
+  ctx.lineTo(14, -22);
+  ctx.lineTo(9, -12);
+  ctx.quadraticCurveTo(7, 0, 14, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Krzyż Królewski na szczycie korony
+  ctx.beginPath();
+  ctx.moveTo(-2.5, -24);
+  ctx.lineTo(-2.5, -34);
+  ctx.lineTo(-6.5, -34);
+  ctx.lineTo(-6.5, -38);
+  ctx.lineTo(-2.5, -38);
+  ctx.lineTo(-2.5, -42);
+  ctx.lineTo(2.5, -42);
+  ctx.lineTo(2.5, -38);
+  ctx.lineTo(6.5, -38);
+  ctx.lineTo(6.5, -34);
+  ctx.lineTo(2.5, -34);
+  ctx.lineTo(2.5, -24);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Rysowanie gigantycznej Ręki Arcymistrza (Boss Finałowy Faza 2 — kruszy krawędzie szachownicy)
+export function drawGrandmasterHand(ctx, xOrHand, yOrTheme, zHeight = 0, themeArg = null) {
+  let x = xOrHand;
+  let y = yOrTheme;
+  let z = zHeight;
+  let theme = themeArg;
+  if (typeof xOrHand === 'object' && xOrHand !== null) {
+    x = xOrHand.x;
+    y = xOrHand.y;
+    z = xOrHand.zHeight || 0;
+    theme = yOrTheme;
+  }
+  if (!theme) return;
+
+  ctx.save();
+
+  // Gigantyczny, złowrogi cień na szachownicy (rośnie w miarę opadania Dłoni)
+  const shadowRatio = Math.max(0.25, 1 - z / 260);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.58)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 10, 74 * shadowRatio, 38 * shadowRatio, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = theme.uiDanger;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([8, 6]);
+  ctx.beginPath();
+  ctx.ellipse(x, y + 10, 74, 38, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Rysowanie samej Dłoni zawieszonej na wysokości z
+  ctx.translate(x, y - z);
+  if (theme.glow) {
+    drawFauxGlow(ctx, 0, -20, 58, theme.uiDanger, 0.25);
+  }
+
+  ctx.fillStyle = theme.enemyFill;
+  ctx.strokeStyle = theme.uiDanger;
+  ctx.lineWidth = 3.5;
+  ctx.lineJoin = 'round';
+
+  // Śródręcze i 5 palców Arcymistrza
+  ctx.beginPath();
+  ctx.moveTo(-38, -75);
+  ctx.lineTo(38, -75);
+  ctx.lineTo(46, -25);
+  // Mały palec
+  ctx.lineTo(42, 16);
+  ctx.lineTo(30, 16);
+  ctx.lineTo(28, -14);
+  // Palec serdeczny
+  ctx.lineTo(24, 24);
+  ctx.lineTo(10, 24);
+  ctx.lineTo(8, -14);
+  // Palec środkowy
+  ctx.lineTo(5, 30);
+  ctx.lineTo(-9, 30);
+  ctx.lineTo(-11, -14);
+  // Palec wskazujący
+  ctx.lineTo(-15, 24);
+  ctx.lineTo(-29, 24);
+  ctx.lineTo(-32, -8);
+  // Kciuk
+  ctx.lineTo(-54, 4);
+  ctx.lineTo(-60, -10);
+  ctx.lineTo(-42, -32);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Mankiet rękawa Arcymistrza z królewskim symbolem
+  ctx.fillStyle = theme.boardFrame;
+  ctx.fillRect(-42, -98, 84, 26);
+  ctx.strokeRect(-42, -98, 84, 26);
+
+  ctx.restore();
+}
+
 // Uniwersalny dispatcher rysowania dowolnej figury szachowej (Gracza, Wroga, Poświaty, Ikon UI)
 export function drawChessPiece(
   ctx,
@@ -412,8 +557,11 @@ export function drawChessPiece(
     const stunned = extra ? extra.isStunned || false : false;
     const tSec = extra ? extra.timeSec || 0 : 0;
     drawRookPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor, facing, shield, stunned, tSec);
-  } else if (type === 'queen') {
-    drawQueenPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
+  } else if (type === 'queen' || type === 'black_queen') {
+    const sc = type === 'black_queen' ? 1.25 : 1.0;
+    drawQueenPiece(ctx, x, y - zHeight, scaleX * sc, scaleY * sc, fill, outline, hitFlash, glowColor);
+  } else if (type === 'king') {
+    drawKingPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
   } else {
     drawPawnPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
   }

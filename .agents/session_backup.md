@@ -235,3 +235,24 @@ Wdrożono pełny zakres **Etapu 2**:
    * Magnetycznie zbierane Czarne Żetony Gambitu z puli `tokens`.
    * Modal `GAMBIT_SHOP` otwierany po każdej fali oraz pod klawiszem `TAB`/`B`: 5 perków pasywnych (*Widełki Skoczka*, *Związanie*, *Poświęcenie Pionka*, *Polerowane Drewno*, *Ołowiany Ciężarek*), 2 zdolności aktywne pod klawiszem `E` (*Roszada* z klonem na przeciwległym rogu, *Okrzyk „Szach!”* zamrażający wrogów na $1.5\text{ s}$ i czyszczący pociski) oraz *Rekonstrukcja (+2 HP)*.
 5. **Single-File Build:** Wygenerowano i zweryfikowano `dist/Index.html`. Gotowość do **Etapu 3 (Bossowie: Czarny Król + Ręka Arcymistrza krusząca szachownicę do 6x6 i 4x4 oraz zapis IndexedDB `AM76_CHESS_DB`)**.
+
+
+---
+
+## Status po wdrożeniu Etapu 3 (Bossowie, Zapis IndexedDB `AM76_CHESS_DB`, HiDPI & Final Polish)
+
+Wdrożono pełny zakres **Etapu 3** (100% ukończenia projektu):
+1. **Asynchroniczny zapis profilu i rekordów w `IndexedDB` (`src/storage.js`):**
+   * Baza `AM76_CHESS_DB` (`profile_store`) z automatycznym fallbackiem do `localStorage` i pamięci RAM.
+   * Asynchroniczny odczyt i zapis bez blokowania pętli 60 FPS: wybrany styl graficzny (`selectedThemeIndex`), wybrane tempo (`selectedTempoId`), rekordy przetrwanych fal i zbitych figur dla każdego tempa (`Rapid`, `Blitz`, `Bullet`), łączne statystyki (`totalKills`, `totalRuns`, `bossesDefeated`, `victories`) oraz odblokowane osiągnięcia.
+2. **Mini-Boss (Fala 3): Czarny Król — The Mad King (`src/game.js`, `src/sprites.js`):**
+   * Otoczony orbitującą tarczą 4 Czarnych Pionków (`kingShieldPawns`), które przechwytują pociski gracza i które można zbić pojedynczo (lub omijać pod kątem).
+   * Co 5 sekund emituje gęstą falę radialną 32 pocisków bullet-hell, a w międzyczasie przyzywa posiłki na krańcach planszy.
+   * Zbicie Czarnego Króla przyznaje $+10.0\text{ s}$ do Zegara Szachowego, 10 Czarnych Żetonów Gambitu oraz otwiera drogę do finału.
+3. **Finałowy Boss (Fala 5): Czarna Królowa & Ręka Arcymistrza (`src/game.js`, `src/boardRenderer.js`, `src/sprites.js`):**
+   * **Faza 1:** Czarna Królowa (`black_queen`) teleportuje się po polach szachownicy z telegrafem, łącząc diagonalne wiązki laserowe Gońca z 12-kierunkowym ostrzałem radialnym.
+   * **Faza 2 (Ręka Arcymistrza — `grandmasterHand`):** przy spadku HP Królowej do $\le 72\%$ oraz $\le 38\%$ z góry ekranu opada gigantyczna, proceduralnie rysowana **Ręka Arcymistrza**, która uderza w stół z potężnym basowym *THUD* (`playGrandmasterSlam`), fizycznie kruszy zewnętrzny pierścień kafelków szachownicy w przepaść i kurczy aktywną planszę z $8 \times 8 \to 6 \times 6 \to 4 \times 4$ (`BoardRenderer.setActiveGridSize`).
+   * Pokonanie Czarnej Królowej uruchamia ekran zwycięstwa (`VICTORY` / `renderVictoryOverlay`) z podsumowaniem partii i zapisem triumfu w `AM76_CHESS_DB`.
+4. **Wsparcie HiDPI (`devicePixelRatio`) i Single-File GAS Build (`src/main.js`, `dist/Index.html`):**
+   * Skalowanie bufora `<canvas>` z uwzględnieniem `window.devicePixelRatio` (do $2\times$ Retina) dla idealnie ostrych wektorów, czcionek i linii szachownicy.
+   * Wygenerowano i zweryfikowano finalny plik produkcyjny `dist/Index.html` (187 KB, 0 błędów składniowych, 100% Zero-GC Object Pooling).

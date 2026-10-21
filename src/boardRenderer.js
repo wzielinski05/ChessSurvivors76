@@ -9,6 +9,7 @@ export class BoardRenderer {
 
     // Wymiary szachownicy 8x8 (8 * 68 = 544x544 px)
     this.gridCount = 8;
+    this.activeGridSize = 8; // Może skurczyć się do 6 (6x6) oraz 4 (4x4) przez Rękę Arcymistrza
     this.tileSize = 68;
     this.boardSize = this.gridCount * this.tileSize; // 544 px
     this.boardX = Math.floor((virtualWidth - this.boardSize) / 2); // 208
@@ -20,17 +21,33 @@ export class BoardRenderer {
     this.cacheCtx = this.cacheCanvas.getContext('2d');
 
     this.cachedThemeId = null;
+    this.cachedGridSize = 8;
+  }
+
+  setActiveGridSize(newSize, theme = null) {
+    this.activeGridSize = newSize;
+    if (theme) {
+      this.rebuildCache(theme);
+    } else {
+      this.cachedThemeId = null;
+    }
   }
 
   getBounds() {
+    const insetTiles = Math.floor((this.gridCount - this.activeGridSize) / 2);
+    const insetPx = insetTiles * this.tileSize;
+    const activeSize = this.activeGridSize * this.tileSize;
     return {
-      left: this.boardX,
-      top: this.boardY,
-      right: this.boardX + this.boardSize,
-      bottom: this.boardY + this.boardSize,
-      size: this.boardSize,
+      left: this.boardX + insetPx,
+      top: this.boardY + insetPx,
+      right: this.boardX + insetPx + activeSize,
+      bottom: this.boardY + insetPx + activeSize,
+      size: activeSize,
       tileSize: this.tileSize,
-      gridCount: this.gridCount
+      gridCount: this.activeGridSize,
+      fullLeft: this.boardX,
+      fullTop: this.boardY,
+      fullSize: this.boardSize
     };
   }
 
@@ -107,32 +124,56 @@ export class BoardRenderer {
       boardSize + 4
     );
 
-    // 4. Rysowanie 64 kafelków szachownicy z proceduralnym detalem palety
+    // 4. Rysowanie 64 kafelków szachownicy z obsługą skruszonych krawędzi (Ręka Arcymistrza)
+    const insetTiles = Math.floor((gridCount - this.activeGridSize) / 2);
+
     for (let row = 0; row < gridCount; row++) {
       for (let col = 0; col < gridCount; col++) {
         const isDark = (row + col) % 2 === 1;
         const tx = boardX + col * tileSize;
         const ty = boardY + row * tileSize;
 
+        const isShattered =
+          col < insetTiles ||
+          col >= gridCount - insetTiles ||
+          row < insetTiles ||
+          row >= gridCount - insetTiles;
+
+        if (isShattered) {
+          // Zniszczony kafelek (przepaść po uderzeniu Ręki Arcymistrza)
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+          ctx.fillRect(tx, ty, tileSize, tileSize);
+
+          ctx.strokeStyle = theme.uiDanger;
+          ctx.globalAlpha = 0.28;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(tx + 2, ty + 2, tileSize - 4, tileSize - 4);
+          ctx.beginPath();
+          ctx.moveTo(tx + 8, ty + 8);
+          ctx.lineTo(tx + tileSize - 12, ty + tileSize - 10);
+          ctx.moveTo(tx + tileSize - 10, ty + 12);
+          ctx.lineTo(tx + 14, ty + tileSize - 8);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          continue;
+        }
+
         ctx.fillStyle = isDark ? theme.tileDark : theme.tileLight;
         ctx.fillRect(tx, ty, tileSize, tileSize);
 
         // Detale proceduralne zależne od wybranego stylu
         if (theme.id === 'woodcraft') {
-          // Delikatne słoje drewna
           ctx.fillStyle = isDark ? 'rgba(0,0,0,0.09)' : 'rgba(120,72,36,0.08)';
           ctx.fillRect(tx, ty + 14, tileSize, 3);
           ctx.fillRect(tx, ty + 42, tileSize, 2);
           ctx.fillRect(tx, ty + 55, tileSize, 4);
         } else if (theme.id === 'cyber_grid') {
-          // Neonowe obramowanie i krzyżyk technologiczny w narożnikach
           ctx.strokeStyle = isDark ? 'rgba(0, 255, 255, 0.14)' : 'rgba(0, 255, 255, 0.24)';
           ctx.lineWidth = 1;
           ctx.strokeRect(tx + 0.5, ty + 0.5, tileSize - 1, tileSize - 1);
           ctx.fillStyle = 'rgba(0, 255, 255, 0.25)';
           ctx.fillRect(tx + 3, ty + 3, 3, 3);
         } else if (theme.id === 'one_bit') {
-          // 1-Bit dithering w narożnikach ciemnych pól
           if (isDark) {
             ctx.fillStyle = theme.tileLight;
             for (let dy = 4; dy < tileSize - 4; dy += 8) {
@@ -147,7 +188,6 @@ export class BoardRenderer {
           ctx.lineWidth = 2;
           ctx.strokeRect(tx + 1, ty + 1, tileSize - 2, tileSize - 2);
         } else if (theme.id === 'blackboard') {
-          // Faktura kreskowania kredą na jasnych polach
           if (!isDark) {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
             ctx.lineWidth = 1.5;
@@ -167,6 +207,14 @@ export class BoardRenderer {
           ctx.strokeRect(tx + 0.5, ty + 0.5, tileSize - 1, tileSize - 1);
         }
       }
+    }
+
+    // Jeśli szachownica została skurczona (6x6 lub 4x4), obrysuj aktywną krawędź przepaści
+    if (insetTiles > 0) {
+      const bounds = this.getBounds();
+      ctx.strokeStyle = theme.uiDanger;
+      ctx.lineWidth = 3.5;
+      ctx.strokeRect(bounds.left, bounds.top, bounds.size, bounds.size);
     }
 
     // 5. Notacja algebraiczna na ramie szachownicy (A-H, 1-8)
@@ -190,10 +238,11 @@ export class BoardRenderer {
       ctx.fillText(rank, boardX + boardSize + 11, cy);
     }
     ctx.globalAlpha = 1;
+    this.cachedGridSize = this.activeGridSize;
   }
 
   render(ctx, theme) {
-    if (this.cachedThemeId !== theme.id) {
+    if (this.cachedThemeId !== theme.id || this.cachedGridSize !== this.activeGridSize) {
       this.rebuildCache(theme);
     }
     ctx.drawImage(this.cacheCanvas, 0, 0);

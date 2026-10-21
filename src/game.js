@@ -1,7 +1,8 @@
-// --- GŁÓWNY SILNIK GRY & MASZYNA STANÓW (ETAP 2: MECHANIKI SZACHOWE, EWOLUCJA & SKLEP GAMBITU) ---
+// --- GŁÓWNY SILNIK GRY & MASZYNA STANÓW (ETAP 3: BOSSOWIE, RĘKA ARCYMISTRZA & INDEXEDDB) ---
 
 import { THEME_ORDER } from './themes.js';
 import { CHESS_TEMPOS, PLAYER_CLASSES, GAMBIT_SHOP_ITEMS } from './chessData.js';
+import { StorageEngine } from './storage.js';
 import { AudioEngine } from './audio.js';
 import { createPools } from './pool.js';
 import {
@@ -17,6 +18,7 @@ import {
 import { BoardRenderer } from './boardRenderer.js';
 import {
   drawChessPiece,
+  drawGrandmasterHand,
   drawGambitToken,
   drawCrosshair,
   drawFauxGlow
@@ -26,7 +28,8 @@ import {
   renderTempoSelectOverlay,
   renderGambitShopOverlay,
   renderBlurOverlay,
-  renderGameOverOverlay
+  renderGameOverOverlay,
+  renderVictoryOverlay
 } from './uiRenderer.js';
 
 export class Game {
@@ -37,6 +40,7 @@ export class Game {
 
     this.width = 960;
     this.height = 720;
+    this.dpr = 1;
 
     this.themeIndex = 0;
     this.theme = THEME_ORDER[this.themeIndex];
@@ -57,7 +61,7 @@ export class Game {
     this._frameCounter = 0;
     this._fpsTimer = 0;
 
-    // Maszyna Stanów: 'SELECT_TEMPO' | 'PLAYING' | 'GAMBIT_SHOP' | 'GAME_OVER'
+    // Maszyna Stanów: 'SELECT_TEMPO' | 'PLAYING' | 'GAMBIT_SHOP' | 'GAME_OVER' | 'VICTORY'
     this.state = 'SELECT_TEMPO';
     this.autoFire = false;
 
@@ -108,6 +112,27 @@ export class Game {
     this.castlingCloneX = 0;
     this.castlingCloneY = 0;
 
+    // Tarcza z 4 orbitujących pionków dla Mini-Bossa: Czarnego Króla (Spec 4.5, prealokowana Zero-GC)
+    this.kingShieldPawns = [
+      { active: false, angle: 0, hp: 3, x: 0, y: 0, hitFlash: 0 },
+      { active: false, angle: Math.PI * 0.5, hp: 3, x: 0, y: 0, hitFlash: 0 },
+      { active: false, angle: Math.PI, hp: 3, x: 0, y: 0, hitFlash: 0 },
+      { active: false, angle: Math.PI * 1.5, hp: 3, x: 0, y: 0, hitFlash: 0 }
+    ];
+    this.kingShieldCount = 0;
+
+    // Ręka Arcymistrza dla Fazy 2 Bossa Finałowego (Spec 4.6)
+    this.grandmasterHand = {
+      active: false,
+      state: 'shadow', // 'shadow' | 'slam' | 'recover'
+      timer: 0,
+      x: 480,
+      y: 380,
+      zHeight: 260,
+      targetGridSize: 6
+    };
+    this.queenShrinkStage = 0; // 0 = 8x8, 1 = 6x6, 2 = 4x4
+
     // Zegar Szachowy (Specyfikacja 2.2)
     this.chessClock = 15.0;
     this.maxClock = 30.0;
@@ -117,6 +142,7 @@ export class Game {
     // Statystyki sesji i fale
     this.wave = 1;
     this.waveDuration = 22.0;
+    this.bossSpawnedForWave = 0;
     this.kills = 0;
     this.gambitTokens = 0;
     this.tokenResidual = 0;
@@ -125,6 +151,19 @@ export class Game {
     this.gameOverReason = '';
 
     this.resetRun('SELECT_TEMPO');
+  }
+
+  applySavedProfile(profile) {
+    if (!profile) return;
+    if (typeof profile.themeIndex === 'number' && THEME_ORDER[profile.themeIndex]) {
+      this.themeIndex = profile.themeIndex;
+      this.theme = THEME_ORDER[this.themeIndex];
+      this.board.rebuildCache(this.theme);
+    }
+    if (profile.tempoId) {
+      const found = CHESS_TEMPOS.find((t) => t.id === profile.tempoId);
+      if (found) this.tempo = found;
+    }
   }
 
   resetRun(initialState = 'PLAYING') {
@@ -136,6 +175,7 @@ export class Game {
     this.pools.floatingTexts.clear();
     this.pools.afterimages.clear();
 
+    this.board.setActiveGridSize(8, this.theme);
     const bounds = this.board.getBounds();
     const pawnCfg = PLAYER_CLASSES.pawn;
 
@@ -171,11 +211,19 @@ export class Game {
     this.activeAbilityCooldown = 0;
     this._updateCastlingClonePos();
 
+    for (let i = 0; i < 4; i++) {
+      this.kingShieldPawns[i].active = false;
+    }
+    this.kingShieldCount = 0;
+    this.grandmasterHand.active = false;
+    this.queenShrinkStage = 0;
+
     this.chessClock = 15.0;
     this.timeTrouble = false;
     this.panicTimer = 5.0;
 
     this.wave = 1;
+    this.bossSpawnedForWave = 0;
     this.kills = 0;
     this.gambitTokens = 0;
     this.tokenResidual = 0;
@@ -208,6 +256,7 @@ export class Game {
     this.themeIndex = (this.themeIndex + 1) % THEME_ORDER.length;
     this.theme = THEME_ORDER[this.themeIndex];
     this.board.rebuildCache(this.theme);
+    StorageEngine.recordTheme(this.themeIndex);
     AudioEngine.playThemeSwap();
     this.spawnFloatingText(
       `STYL: ${this.theme.name.toUpperCase()}`,
@@ -404,7 +453,32 @@ export class Game {
 
     const spdMult = this.tempo.enemySpeedMult;
 
-    if (type === 'rook') {
+    if (type === 'king') {
+      // Mini-Boss: Czarny Król (The Mad King — Spec 4.5)
+      e.radius = 22;
+      e.maxHp = Math.round((45 + this.wave * 8) * (this.tempo.id === 'bullet' ? 1.2 : 1.0));
+      e.hp = e.maxHp;
+      e.speed = 46 * spdMult;
+      e.stateTimer = 2.5;
+      // Aktywacja 4 orbitujących pionków-tarcz wokół Czarnego Króla
+      for (let i = 0; i < 4; i++) {
+        this.kingShieldPawns[i].active = true;
+        this.kingShieldPawns[i].angle = (i * Math.PI) / 2;
+        this.kingShieldPawns[i].hp = 3;
+        this.kingShieldPawns[i].hitFlash = 0;
+        this.kingShieldPawns[i].x = e.x + Math.cos(this.kingShieldPawns[i].angle) * 46;
+        this.kingShieldPawns[i].y = e.y + Math.sin(this.kingShieldPawns[i].angle) * 46;
+      }
+      this.kingShieldCount = 4;
+    } else if (type === 'black_queen') {
+      // Boss Finałowy: Czarna Królowa & Ręka Arcymistrza (Spec 4.6)
+      e.radius = 21;
+      e.maxHp = Math.round((75 + this.wave * 10) * (this.tempo.id === 'bullet' ? 1.25 : 1.0));
+      e.hp = e.maxHp;
+      e.speed = 88 * spdMult;
+      e.stateTimer = 1.6;
+      this.queenShrinkStage = 0;
+    } else if (type === 'rook') {
       e.radius = 17;
       e.maxHp = 8 + Math.floor(this.wave * 1.1);
       e.hp = e.maxHp;
@@ -424,6 +498,47 @@ export class Game {
       e.maxHp = 2 + Math.floor(this.wave * 0.45);
       e.hp = e.maxHp;
       e.speed = (82 + Math.min(38, this.wave * 4)) * spdMult;
+    }
+  }
+
+  getActiveBoss() {
+    const items = this.pools.enemies.items;
+    const size = this.pools.enemies.size;
+    for (let i = 0; i < size; i++) {
+      const e = items[i];
+      if (e.active && (e.type === 'king' || e.type === 'black_queen')) {
+        return e;
+      }
+    }
+    return null;
+  }
+
+  spawnBossForCurrentWave() {
+    if (this.bossSpawnedForWave === this.wave) return;
+    if (this.wave === 3) {
+      this.bossSpawnedForWave = this.wave;
+      this.spawnEnemy('king');
+      AudioEngine.playBossWarning();
+      this.addTrauma(0.6);
+      this.spawnFloatingText(
+        '👑 MINI-BOSS: CZARNY KRÓL (THE MAD KING)! 👑',
+        this.width / 2,
+        this.board.getBounds().top + 54,
+        this.theme.uiDanger,
+        1.25
+      );
+    } else if (this.wave === 5) {
+      this.bossSpawnedForWave = this.wave;
+      this.spawnEnemy('black_queen');
+      AudioEngine.playBossWarning();
+      this.addTrauma(0.75);
+      this.spawnFloatingText(
+        '👑 BOSS FINAŁOWY: CZARNA KRÓLOWA & RĘKA ARCYMISTRZA! 👑',
+        this.width / 2,
+        this.board.getBounds().top + 54,
+        this.theme.uiDanger,
+        1.25
+      );
     }
   }
 
@@ -480,6 +595,7 @@ export class Game {
     this.player.dashCooldown = 0;
     this._recalcPlayerStats();
 
+    StorageEngine.unlockAchievement(`promo_${newClassId}`, `Promocja: ${cData.name}`);
     AudioEngine.playPromotion();
     this.addTrauma(0.45);
     this.spawnParticles(this.player.x, this.player.y, 28, this.theme.uiAccent, 60, 240);
@@ -529,16 +645,19 @@ export class Game {
   _handleTempoSelectInput() {
     if (this.input.consumeJustPressed('Digit1')) {
       this.tempo = CHESS_TEMPOS[0];
+      StorageEngine.recordTempo(this.tempo.id);
       this.resetRun('PLAYING');
       return;
     }
     if (this.input.consumeJustPressed('Digit2')) {
       this.tempo = CHESS_TEMPOS[1];
+      StorageEngine.recordTempo(this.tempo.id);
       this.resetRun('PLAYING');
       return;
     }
     if (this.input.consumeJustPressed('Digit3')) {
       this.tempo = CHESS_TEMPOS[2];
+      StorageEngine.recordTempo(this.tempo.id);
       this.resetRun('PLAYING');
       return;
     }
@@ -546,6 +665,7 @@ export class Game {
       this.input.consumeJustPressed('Space') ||
       this.input.consumeJustPressed('Enter')
     ) {
+      StorageEngine.recordTempo(this.tempo.id);
       this.resetRun('PLAYING');
       return;
     }
@@ -568,6 +688,7 @@ export class Game {
           this.input.mouseY <= cardY + cardH
         ) {
           this.tempo = CHESS_TEMPOS[i];
+          StorageEngine.recordTempo(this.tempo.id);
           AudioEngine.playShopBuy();
           this.resetRun('PLAYING');
           return;
@@ -583,6 +704,7 @@ export class Game {
       this.input.consumeJustPressed('Enter')
     ) {
       this.state = 'PLAYING';
+      this.spawnBossForCurrentWave();
       AudioEngine.playClockClick();
       return;
     }
@@ -669,6 +791,7 @@ export class Game {
         this.input.mouseY <= by + btnH
       ) {
         this.state = 'PLAYING';
+        this.spawnBossForCurrentWave();
         AudioEngine.playClockClick();
       }
     }
@@ -710,6 +833,37 @@ export class Game {
       return;
     }
 
+    // Obsługa stanu VICTORY (po pokonaniu Czarnej Królowej / Hetmana i Ręki Arcymistrza)
+    if (this.state === 'VICTORY') {
+      this.time += dt;
+      if (this.trauma > 0) this.trauma = Math.max(0, this.trauma - 1.6 * dt);
+      if (this.victoryLockTimer > 0) this.victoryLockTimer -= dt;
+      this._updateLasers(dt);
+      this._updateParticles(dt);
+      this._updateFloatingTexts(dt);
+      this._updateAfterimages(dt);
+
+      if (this.input.consumeJustPressed('KeyR')) {
+        this.resetRun('PLAYING');
+      } else if (
+        (this.victoryLockTimer || 0) <= 0 &&
+        (this.input.consumeJustPressed('Space') ||
+          this.input.consumeJustPressed('Enter') ||
+          this.input.consumeLeftClick())
+      ) {
+        // Odbudowa szachownicy do 8x8 i kontynuacja w trybie Endless
+        this.board.setActiveGridSize(8, this.theme);
+        this.grandmasterHand.active = false;
+        this.hitstopTimer = 0;
+        this.wave++;
+        this.waveTimer = 0;
+        this.state = 'PLAYING';
+        AudioEngine.playPromotion();
+      }
+      this.input.endFrame();
+      return;
+    }
+
     // Przełączanie Auto-Fire pod klawiszem Q
     if (this.input.consumeJustPressed('KeyQ')) {
       this.autoFire = !this.autoFire;
@@ -734,6 +888,13 @@ export class Game {
 
     // Obsługa stanu GAME_OVER
     if (this.state === 'GAME_OVER') {
+      this.time += dt;
+      if (this.trauma > 0) this.trauma = Math.max(0, this.trauma - 1.6 * dt);
+      this._updateLasers(dt);
+      this._updateParticles(dt);
+      this._updateFloatingTexts(dt);
+      this._updateAfterimages(dt);
+
       if (
         this.input.consumeJustPressed('Space') ||
         this.input.consumeJustPressed('KeyR') ||
@@ -764,22 +925,26 @@ export class Game {
     }
 
     this.time += dt;
-    this.waveTimer += dt;
 
-    // Zakończenie fali -> Otwarcie Sklepu Gambitu i Awansu Figury!
-    if (this.waveTimer >= this.waveDuration) {
-      this.waveTimer = 0;
-      this.wave++;
-      this.spawnFloatingText(
-        `FALA ${this.wave} — SKLEP GAMBITU!`,
-        this.width / 2,
-        this.board.getBounds().top + 40,
-        this.theme.uiAccent,
-        1.35
-      );
-      this.openGambitShop();
-      this.input.endFrame();
-      return;
+    // Podczas walki z aktywnym Bossem licznik końca fali czeka na zbicie Bossa
+    const activeBoss = this.getActiveBoss();
+    if (!activeBoss) {
+      this.waveTimer += dt;
+      if (this.waveTimer >= this.waveDuration) {
+        this.waveTimer = 0;
+        this.wave++;
+        StorageEngine.recordRunResult(this.tempo.id, this.wave, this.kills, false);
+        this.spawnFloatingText(
+          `FALA ${this.wave} — SKLEP GAMBITU!`,
+          this.width / 2,
+          this.board.getBounds().top + 40,
+          this.theme.uiAccent,
+          1.35
+        );
+        this.openGambitShop();
+        this.input.endFrame();
+        return;
+      }
     }
 
     // Spowolnienie świata o 75% podczas zdolności Hetmana (Royal Majesty)
@@ -789,6 +954,7 @@ export class Game {
     this._updatePlayer(dt);
     this._updateSpawner(worldDt);
     this._updateEnemies(worldDt);
+    this._updateGrandmasterHand(worldDt);
     this._updateBullets(dt, worldDt);
     this._updateTokens(dt);
     this._updateLasers(dt);
@@ -1343,6 +1509,10 @@ export class Game {
         this._updateBlackBishop(e, dt, panicMult, bounds);
       } else if (e.type === 'rook') {
         this._updateBlackRook(e, dt, panicMult, bounds);
+      } else if (e.type === 'king') {
+        this._updateBlackKing(e, dt, panicMult, bounds);
+      } else if (e.type === 'black_queen') {
+        this._updateBlackQueen(e, dt, panicMult, bounds);
       }
 
       // Kolizja kontaktowa wroga z graczem (tylko gdy wróg i gracz są na ziemi)
@@ -1500,7 +1670,6 @@ export class Game {
     const moveScale = e.pinnedTimer > 0 ? 0 : 1;
 
     if (e.state === 'chase') {
-      // Dąży do najbliższego narożnika lub punktu przekątnego względem gracza
       const cornerX = e.x < bounds.left + bounds.size / 2 ? bounds.left + 44 : bounds.right - 44;
       const cornerY = e.y < bounds.top + bounds.size / 2 ? bounds.top + 44 : bounds.bottom - 44;
       const dx = cornerX - e.x;
@@ -1516,7 +1685,6 @@ export class Game {
         e.state = 'telegraph';
         e.stateTimer = (this.tempo.telegraphBase * 1.15) / panicMult;
 
-        // Wybór jednej z 4 przekątnych (±45°, ±135°) najbliższej kierunkowi do gracza
         const signX = p.x >= e.x ? 0.7071 : -0.7071;
         const signY = p.y >= e.y ? 0.7071 : -0.7071;
         const exit = rayBoxExitPoint(e.x, e.y, signX, signY, bounds);
@@ -1536,7 +1704,6 @@ export class Game {
         e.scaleX = 1.3;
         e.scaleY = 0.75;
 
-        // Wystrzał ciągłej wiązki laserowej po przekątnej (Bottleneck #4 Fix: distToSegmentSq)
         AudioEngine.playBishopLaser();
         this.addTrauma(0.36);
         this.spawnLaserBeam(
@@ -1590,7 +1757,6 @@ export class Game {
       e.x += (dx / dist) * e.speed * panicMult * moveScale * dt;
       e.y += (dy / dist) * e.speed * panicMult * moveScale * dt;
 
-      // Orientacja tarczy frontalnej w stronę gracza
       e.facingAngle = Math.atan2(dy, dx);
       e.stateTimer -= dt * panicMult;
 
@@ -1600,7 +1766,6 @@ export class Game {
         e.startX = e.x;
         e.startY = e.y;
 
-        // Szarża kardynalna (pozioma lub pionowa aż do bandy szachownicy)
         if (Math.abs(dx) >= Math.abs(dy)) {
           const dirX = dx >= 0 ? 1 : -1;
           e.facingAngle = dirX > 0 ? 0 : Math.PI;
@@ -1630,7 +1795,6 @@ export class Game {
       e.x += e.vx * moveScale * dt;
       e.y += e.vy * moveScale * dt;
 
-      // Sprawdzenie uderzenia w bandę szachownicy -> Ogłuszenie na 2.0 sekundy!
       const hitHorizontal = e.vx !== 0 && (e.x <= bounds.left + 19 || e.x >= bounds.right - 19);
       const hitVertical = e.vy !== 0 && (e.y <= bounds.top + 19 || e.y >= bounds.bottom - 19);
 
@@ -1638,13 +1802,226 @@ export class Game {
         e.x = clamp(e.x, bounds.left + 19, bounds.right - 19);
         e.y = clamp(e.y, bounds.top + 19, bounds.bottom - 19);
         e.state = 'stunned';
-        e.stunTimer = 2.0; // Spec 4.4: ogłuszona na 2 sekundy (okno do ataku w plecy!)
+        e.stunTimer = 2.0;
         e.scaleX = 1.42;
         e.scaleY = 0.62;
         AudioEngine.playRookThud();
         this.addTrauma(0.52);
         this.spawnParticles(e.x, e.y, 18, this.theme.enemyOutline, 50, 190);
         this.spawnFloatingText('OGŁUSZONA! (2.0s)', e.x, e.y - 26, '#ffdd33', 1.05);
+      }
+    }
+  }
+
+  // 5. Mini-Boss: Czarny Król (Spec 4.5: tarcza z 4 orbitujących pionków + 32 pociski po okręgu co 5s + posiłki)
+  _updateBlackKing(e, dt, panicMult, bounds) {
+    const p = this.player;
+    const dx = p.x - e.x;
+    const dy = p.y - e.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const moveScale = e.pinnedTimer > 0 ? 0 : 1;
+
+    e.x = clamp(
+      e.x + (dx / dist) * e.speed * panicMult * moveScale * dt,
+      bounds.left + 32,
+      bounds.right - 32
+    );
+    e.y = clamp(
+      e.y + (dy / dist) * e.speed * panicMult * moveScale * dt,
+      bounds.top + 32,
+      bounds.bottom - 32
+    );
+
+    // Aktualizacja 4 orbitujących pionków-tarcz
+    let activeShields = 0;
+    for (let i = 0; i < 4; i++) {
+      const sp = this.kingShieldPawns[i];
+      if (!sp.active) continue;
+      activeShields++;
+      if (sp.hitFlash > 0) sp.hitFlash -= dt;
+      sp.angle += dt * 2.4 * panicMult;
+      sp.x = e.x + Math.cos(sp.angle) * 48;
+      sp.y = e.y + Math.sin(sp.angle) * 48;
+
+      if (p.zHeight < 20 && distSq(sp.x, sp.y, p.x, p.y) <= (11 + p.radius) * (11 + p.radius)) {
+        this.damagePlayer(1, sp.x, sp.y);
+      }
+    }
+    this.kingShieldCount = activeShields;
+
+    e.stateTimer -= dt * panicMult;
+    if (e.stateTimer <= 0) {
+      e.stateTimer = 5.0; // Spec 4.5: co 5 sekund radialny bullet-hell (32 pociski) i posiłki!
+      e.scaleX = 1.35;
+      e.scaleY = 0.72;
+      AudioEngine.playKnightSlam();
+      this.addTrauma(0.55);
+      this.spawnFloatingText('KRÓLEWSKA SALWA (32 POCISKI)!', e.x, e.y - 34, this.theme.uiDanger, 1.15);
+
+      const bulletCount = 32;
+      const spd = (this.timeTrouble ? 255 : 195) * this.tempo.bulletSpeedMult;
+      for (let b = 0; b < bulletCount; b++) {
+        const ang = (b / bulletCount) * Math.PI * 2;
+        this.spawnBullet(e.x, e.y, Math.cos(ang) * spd, Math.sin(ang) * spd, true, 5.5, 1, 3.8);
+      }
+
+      // Przyzwanie posiłków
+      if (this.pools.enemies.activeCount < 18) {
+        this.spawnEnemy('pawn');
+        this.spawnEnemy('knight');
+      }
+    }
+  }
+
+  // 6. Boss Finałowy: Czarna Królowa & Ręka Arcymistrza (Spec 4.6)
+  _updateBlackQueen(e, dt, panicMult, bounds) {
+    const p = this.player;
+    const hpRatio = e.hp / e.maxHp;
+
+    // Faza 2: Przywołanie Ręki Arcymistrza niszczącej zewnętrzne kafelki (8x8 -> 6x6 -> 4x4)
+    if (hpRatio <= 0.72 && this.queenShrinkStage === 0 && !this.grandmasterHand.active) {
+      this.queenShrinkStage = 1;
+      this._summonGrandmasterHand(6);
+    } else if (hpRatio <= 0.38 && this.queenShrinkStage === 1 && !this.grandmasterHand.active) {
+      this.queenShrinkStage = 2;
+      this._summonGrandmasterHand(4);
+    }
+
+    if (e.state === 'chase') {
+      const dx = p.x - e.x;
+      const dy = p.y - e.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      e.x = clamp(e.x + (dx / dist) * e.speed * dt, bounds.left + 26, bounds.right - 26);
+      e.y = clamp(e.y + (dy / dist) * e.speed * dt, bounds.top + 26, bounds.bottom - 26);
+
+      e.stateTimer -= dt * panicMult;
+      if (e.stateTimer <= 0) {
+        e.state = 'telegraph';
+        e.stateTimer = (this.tempo.telegraphBase * 0.95) / panicMult;
+        // Wybór losowego kafelka wewnątrz aktywnej szachownicy do teleportacji
+        const pad = 42;
+        e.targetX = bounds.left + pad + Math.random() * Math.max(40, bounds.size - pad * 2);
+        e.targetY = bounds.top + pad + Math.random() * Math.max(40, bounds.size - pad * 2);
+        AudioEngine.playTelegraphWarn();
+      }
+    } else if (e.state === 'telegraph') {
+      e.stateTimer -= dt;
+      e.scaleX = 0.8;
+      e.scaleY = 1.25;
+      if (e.stateTimer <= 0) {
+        // Teleportacja na kafelek docelowy + kombinacja laserów Gońca i salwy Wieży!
+        this.spawnParticles(e.x, e.y, 16, this.theme.enemyOutline, 50, 180);
+        e.x = e.targetX;
+        e.y = e.targetY;
+        e.state = 'chase';
+        e.stateTimer = 1.85;
+        e.scaleX = 1.35;
+        e.scaleY = 0.72;
+
+        AudioEngine.playBishopLaser();
+        this.addTrauma(0.5);
+
+        // 1) Lasery diagonalne Gońca z nowej pozycji Królowej
+        const diagDirs = [
+          [0.7071, 0.7071],
+          [-0.7071, 0.7071],
+          [0.7071, -0.7071],
+          [-0.7071, -0.7071]
+        ];
+        for (let d = 0; d < 4; d++) {
+          const exit = rayBoxExitPoint(e.x, e.y, diagDirs[d][0], diagDirs[d][1], bounds);
+          this.spawnLaserBeam(e.x, e.y, exit.x, exit.y, true, 10, this.theme.bulletEnemy, 0.3);
+          if (p.zHeight < 20) {
+            const hitR = p.radius + 6;
+            if (distToSegmentSq(p.x, p.y, e.x, e.y, exit.x, exit.y) <= hitR * hitR) {
+              this.damagePlayer(1, e.x, e.y);
+            }
+          }
+        }
+
+        // 2) Salwa kardynalna + pośrednia (12 pocisków)
+        const count = 12 * this.tempo.bulletHellDensity;
+        const spd = 230 * this.tempo.bulletSpeedMult;
+        for (let b = 0; b < count; b++) {
+          const ang = (b / count) * Math.PI * 2;
+          this.spawnBullet(e.x, e.y, Math.cos(ang) * spd, Math.sin(ang) * spd, true, 5.5, 1, 3.2);
+        }
+      }
+    }
+  }
+
+  _summonGrandmasterHand(targetGridSize) {
+    const bounds = this.board.getBounds();
+    this.grandmasterHand.active = true;
+    this.grandmasterHand.state = 'shadow';
+    this.grandmasterHand.timer = 1.35;
+    this.grandmasterHand.x = bounds.left + bounds.size / 2;
+    this.grandmasterHand.y = bounds.top + bounds.size / 2;
+    this.grandmasterHand.zHeight = 260;
+    this.grandmasterHand.targetGridSize = targetGridSize;
+    AudioEngine.playBossWarning();
+    this.spawnFloatingText(
+      `✋ RĘKA ARCYMISTRZA NADCHODZI (${targetGridSize}x${targetGridSize})! ✋`,
+      this.width / 2,
+      bounds.top + 32,
+      this.theme.uiDanger,
+      1.3
+    );
+  }
+
+  _updateGrandmasterHand(dt) {
+    const h = this.grandmasterHand;
+    if (!h.active) return;
+
+    h.timer -= dt;
+    if (h.state === 'shadow') {
+      // Dłoń opada znad szachownicy
+      h.zHeight = Math.max(0, (h.timer / 1.35) * 260);
+      if (h.timer <= 0) {
+        h.state = 'slam';
+        h.timer = 0.65;
+        h.zHeight = 0;
+
+        // Fizyczne uderzenie w stół i skruszenie zewnętrznych kafelków szachownicy!
+        this.board.setActiveGridSize(h.targetGridSize, this.theme);
+        const newBounds = this.board.getBounds();
+
+        AudioEngine.playGrandmasterSlam();
+        this.addTrauma(0.95);
+        this.triggerHitstop(0.07);
+        this.spawnShockwaveRing(h.x, h.y, newBounds.size * 0.75, this.theme.uiDanger, 0.5);
+        this.spawnParticles(h.x, h.y, 42, this.theme.tileLight, 80, 290);
+        this.spawnFloatingText(
+          `SZACHOWNICA SKRUSZONA DO ${h.targetGridSize}x${h.targetGridSize}!`,
+          h.x,
+          h.y - 30,
+          this.theme.uiDanger,
+          1.35
+        );
+
+        // Wepchnięcie gracza i wrogów do wnętrza zmniejszonej areny
+        const margin = this.player.radius + 8;
+        this.player.x = clamp(this.player.x, newBounds.left + margin, newBounds.right - margin);
+        this.player.y = clamp(this.player.y, newBounds.top + margin, newBounds.bottom - margin);
+        this._updateCastlingClonePos();
+
+        const enemies = this.pools.enemies.items;
+        for (let i = 0; i < this.pools.enemies.size; i++) {
+          const e = enemies[i];
+          if (!e.active) continue;
+          e.x = clamp(e.x, newBounds.left + 22, newBounds.right - 22);
+          e.y = clamp(e.y, newBounds.top + 22, newBounds.bottom - 22);
+        }
+      }
+    } else if (h.state === 'slam') {
+      if (h.timer <= 0) {
+        h.state = 'recover';
+        h.timer = 0.7;
+      }
+    } else if (h.state === 'recover') {
+      h.zHeight = (1 - h.timer / 0.7) * 280;
+      if (h.timer <= 0) {
+        h.active = false;
       }
     }
   }
@@ -1690,7 +2067,6 @@ export class Game {
         }
       }
 
-      // Wyjście poza granice stołu lub koniec czasu życia
       if (
         b.life >= b.maxLife ||
         b.x < bounds.left - 18 ||
@@ -1711,7 +2087,6 @@ export class Game {
       }
 
       if (b.isEnemy) {
-        // Skoczek w trakcie skoku (Knight's Leap) przeskakuje nad pociskami
         if (p.zHeight > 22) continue;
 
         const hitPlayer = sweptCircleCollision(
@@ -1727,7 +2102,6 @@ export class Game {
 
         if (hitPlayer) {
           if (p.dashTimer > 0) {
-            // En Passant Dash / Zryw kasuje pocisk i dodaje +1.0s do Zegara Szachowego
             this.pools.bullets.release(b);
             AudioEngine.playParryBullet();
             this.triggerHitstop(0.035);
@@ -1742,7 +2116,6 @@ export class Game {
             );
             this.spawnParticles(b.x, b.y, 12, this.theme.bulletPlayer, 60, 200);
           } else if (p.classId === 'rook' && p.rookShieldCharges > 0) {
-            // Pasywna Tarcza Frontalna Wieży Gracza (pochłania do 3 pocisków od frontu)
             const incAngle = Math.atan2(b.prevY - p.y, b.prevX - p.x);
             if (Math.abs(angleDiff(incAngle, playerAimAngle)) <= 1.25) {
               p.rookShieldCharges--;
@@ -1768,7 +2141,31 @@ export class Game {
           }
         }
       } else {
-        // Pocisk gracza vs Wrogowie
+        // 1. Sprawdzenie kolizji pocisku gracza z 4 orbitującymi pionkami-tarczami Czarnego Króla (Spec 4.5)
+        let blockedByKingShield = false;
+        for (let s = 0; s < 4; s++) {
+          const sp = this.kingShieldPawns[s];
+          if (!sp.active) continue;
+          if (sweptCircleCollision(b.prevX, b.prevY, b.x, b.y, b.radius, sp.x, sp.y, 12)) {
+            sp.hp -= b.damage;
+            sp.hitFlash = 0.1;
+            this.pools.bullets.release(b);
+            blockedByKingShield = true;
+            if (sp.hp <= 0) {
+              sp.active = false;
+              AudioEngine.playPieceShatter();
+              this.spawnParticles(sp.x, sp.y, 14, this.theme.enemyFill, 50, 190);
+              this.addClockIncrement(0.8, sp.x, sp.y);
+            } else {
+              AudioEngine.playShieldDeflect();
+              this.spawnParticles(b.x, b.y, 6, this.theme.bulletPlayer, 35, 110);
+            }
+            break;
+          }
+        }
+        if (blockedByKingShield) continue;
+
+        // 2. Pocisk gracza vs Wrogowie
         for (let j = 0; j < eSize; j++) {
           const e = enemies[j];
           if (!e.active || e.zHeight > 28) continue;
@@ -1785,7 +2182,6 @@ export class Game {
               e.radius
             )
           ) {
-            // Sprawdzenie Tarczy Frontalnej Czarnej Wieży (Spec 4.4: niezniszczalna od frontu, dopóki nie jest ogłuszona)
             if (e.type === 'rook' && e.state !== 'stunned' && e.frozenTimer <= 0) {
               const hitFromAngle = Math.atan2(b.prevY - e.y, b.prevX - e.x);
               if (Math.abs(angleDiff(hitFromAngle, e.facingAngle)) < 1.2) {
@@ -1828,33 +2224,34 @@ export class Game {
     isShard = false,
     knockbackMult = 1
   ) {
-    // Dodatkowy mnożnik obrażeń w plecy ogłuszonej Czarnej Wieży
+    if (!e || !e.active) return;
+    const isBoss = e.type === 'king' || e.type === 'black_queen';
     const stunBonus = e.type === 'rook' && e.state === 'stunned' ? 1.5 : 1.0;
-    const finalDmg = dmg * stunBonus;
+    // Czarny Król otrzymuje zredukowane obrażenia, dopóki żyją jego pionki-tarcze
+    const kingShieldResist = e.type === 'king' && this.kingShieldCount > 0 ? 0.5 : 1.0;
+    const finalDmg = dmg * stunBonus * kingShieldResist;
     e.hp -= finalDmg;
     e.hitFlash = 0.09;
-    e.scaleX = 1.25;
-    e.scaleY = 0.78;
+    e.scaleX = 1.22;
+    e.scaleY = 0.8;
 
     const bounds = this.board.getBounds();
     const len = Math.hypot(bulletVx, bulletVy) || 1;
-    const kbDist = 6.5 * knockbackMult;
-    e.x = clamp(e.x + (bulletVx / len) * kbDist, bounds.left + 16, bounds.right - 16);
-    e.y = clamp(e.y + (bulletVy / len) * kbDist, bounds.top + 16, bounds.bottom - 16);
+    const kbDist = (isBoss ? 2.0 : 6.5) * knockbackMult;
+    e.x = clamp(e.x + (bulletVx / len) * kbDist, bounds.left + 20, bounds.right - 20);
+    e.y = clamp(e.y + (bulletVy / len) * kbDist, bounds.top + 20, bounds.bottom - 20);
 
     if (isCrit) {
       this.triggerHitstop(0.035);
       this.spawnFloatingText('CRIT!', e.x, e.y - 22, this.theme.uiAccent, 1.05);
     }
 
-    // Perk: Związanie (Pinning Shot — 25% szansy na unieruchomienie na 1.5s)
     const pinLvl = this.perks.pinning_shot || 0;
-    if (pinLvl > 0 && Math.random() < 0.25 * pinLvl && e.pinnedTimer <= 0) {
+    if (!isBoss && pinLvl > 0 && Math.random() < 0.25 * pinLvl && e.pinnedTimer <= 0) {
       e.pinnedTimer = 1.5;
       this.spawnFloatingText('ZWIĄZANIE!', e.x, e.y - 30, '#55ddff', 0.95);
     }
 
-    // Perk: Widełki Skoczka (Knight's Fork — trafienie krytyczne wysyła 2 odłamki w najbliższych wrogów)
     const forkLvl = this.perks.knights_fork || 0;
     if (isCrit && !isShard && forkLvl > 0) {
       this._spawnKnightForkShards(e, forkLvl);
@@ -1862,15 +2259,21 @@ export class Game {
 
     if (e.hp <= 0) {
       // Inkrement Zegara Szachowego wg Specyfikacji 2.2:
-      // Pionek +0.8s, Skoczek/Goniec +2.0s, Wieża +3.5s
-      const inc =
-        e.type === 'rook'
-          ? 3.5
-          : e.type === 'knight' || e.type === 'bishop'
-          ? 2.0
-          : 0.8;
-      const baseTokens =
-        e.type === 'rook' ? 4 : e.type === 'knight' || e.type === 'bishop' ? 2 : 1;
+      // Pionek +0.8s, Skoczek/Goniec +2.0s, Wieża +3.5s, Boss +10.0s
+      const inc = isBoss
+        ? 10.0
+        : e.type === 'rook'
+        ? 3.5
+        : e.type === 'knight' || e.type === 'bishop'
+        ? 2.0
+        : 0.8;
+      const baseTokens = isBoss
+        ? 14
+        : e.type === 'rook'
+        ? 4
+        : e.type === 'knight' || e.type === 'bishop'
+        ? 2
+        : 1;
 
       this.kills++;
       this.tokenResidual += baseTokens * this.tempo.tokenDropMult;
@@ -1882,21 +2285,53 @@ export class Game {
       }
 
       this.addClockIncrement(inc, e.x, e.y);
-      this.triggerHitstop(0.045); // Specyfikacja 7.3: 45 ms Frame-Freeze przy zbiciu figury
-      this.addTrauma(e.type === 'rook' ? 0.65 : e.type === 'pawn' ? 0.34 : 0.52);
+      this.triggerHitstop(isBoss ? 0.08 : 0.045);
+      this.addTrauma(isBoss ? 0.95 : e.type === 'rook' ? 0.65 : e.type === 'pawn' ? 0.34 : 0.52);
       AudioEngine.playPieceShatter();
 
       this.spawnParticles(
         e.x,
         e.y,
-        e.type === 'pawn' ? 15 : 24,
+        isBoss ? 48 : e.type === 'pawn' ? 15 : 24,
         this.theme.enemyFill,
         50,
-        240
+        260
       );
-      this.spawnParticles(e.x, e.y, 10, this.theme.enemyOutline, 70, 210);
+      this.spawnParticles(e.x, e.y, isBoss ? 24 : 10, this.theme.enemyOutline, 70, 230);
 
+      const defeatedType = e.type;
       this.pools.enemies.release(e);
+
+      if (defeatedType === 'king') {
+        for (let i = 0; i < 4; i++) this.kingShieldPawns[i].active = false;
+        this.kingShieldCount = 0;
+        StorageEngine.profile.bossesDefeated++;
+        StorageEngine.unlockAchievement('mad_king', 'Pogromca Szalonego Króla');
+        StorageEngine.recordRunResult(this.tempo.id, this.wave, this.kills, false);
+        this.spawnFloatingText('👑 CZARNY KRÓL ZBITY! (+10.0s) 👑', e.x, e.y - 36, '#55ff99', 1.35);
+      } else if (defeatedType === 'black_queen') {
+        this.grandmasterHand.active = false;
+        this.hitstopTimer = 0;
+        this.victoryLockTimer = 0.65;
+        this.spawnShockwaveRing(e.x, e.y, 260, '#55ff99', 0.55);
+        this.spawnFloatingText('👑 MAT ARCYMISTRZA! (+10.0s) 👑', e.x, e.y - 36, '#55ff99', 1.4);
+
+        const bullets = this.pools.bullets.items;
+        for (let bIdx = 0; bIdx < this.pools.bullets.size; bIdx++) {
+          if (bullets[bIdx].active && bullets[bIdx].isEnemy) {
+            this.pools.bullets.release(bullets[bIdx]);
+          }
+        }
+
+        StorageEngine.profile.bossesDefeated++;
+        StorageEngine.unlockAchievement('grandmaster', 'Arcymistrz Szachownicy');
+        if (this.tempo.id === 'bullet') {
+          StorageEngine.unlockAchievement('bullet_god', 'Bóg Tempa Bullet');
+        }
+        StorageEngine.recordRunResult(this.tempo.id, this.wave, this.kills, true);
+        this.collectAllBoardTokens();
+        this.state = 'VICTORY';
+      }
     } else {
       AudioEngine.playHitEnemy();
       this.addTrauma(0.12);
@@ -1997,6 +2432,7 @@ export class Game {
     this.gameOverReason = reason;
     this.addTrauma(0.9);
     AudioEngine.playPieceShatter();
+    StorageEngine.recordRunResult(this.tempo.id, this.wave, this.kills, false);
   }
 
   _updateTokens(dt) {
@@ -2108,6 +2544,8 @@ export class Game {
   render() {
     const ctx = this.ctx;
     const theme = this.theme;
+    const dpr = this.dpr || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     ctx.save();
 
@@ -2170,6 +2608,8 @@ export class Game {
       renderBlurOverlay(ctx, this, theme);
     } else if (this.state === 'GAME_OVER') {
       renderGameOverOverlay(ctx, this, theme);
+    } else if (this.state === 'VICTORY') {
+      renderVictoryOverlay(ctx, this, theme);
     }
 
     drawCrosshair(
@@ -2261,6 +2701,29 @@ export class Game {
         ctx.beginPath();
         ctx.moveTo(e.x, e.y);
         ctx.lineTo(e.targetX, e.targetY);
+        ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'black_queen' && e.state === 'telegraph') {
+        // Telegraf teleportacji Czarnej Królowej + krzyżowe wiązki laserowe
+        ctx.save();
+        ctx.strokeStyle = theme.telegraphStroke;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(e.x, e.y);
+        ctx.lineTo(e.targetX, e.targetY);
+        ctx.stroke();
+
+        ctx.fillStyle = theme.telegraphWarn;
+        ctx.beginPath();
+        ctx.arc(e.targetX, e.targetY, 30, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = theme.uiDanger;
+        ctx.setLineDash([]);
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(e.targetX, e.targetY, 30, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -2411,6 +2874,25 @@ export class Game {
       }
     }
 
+    // 2B. Tarcza 4 orbitujących Pionków wokół Czarnego Króla (Mini-Boss)
+    for (let s = 0; s < 4; s++) {
+      const sp = this.kingShieldPawns[s];
+      if (!sp.active) continue;
+      drawChessPiece(
+        ctx,
+        'pawn',
+        sp.x,
+        sp.y,
+        0,
+        0.78,
+        0.78,
+        theme.enemyFill,
+        theme.uiAccent,
+        sp.hitFlash,
+        theme.glow ? theme.uiAccent : null
+      );
+    }
+
     // 3. Rysowanie Gracza (zgodnie z aktualną klasą z Drzewka Ewolucji)
     const blink = p.invulnTimer > 0 && Math.floor(this.time * 20) % 2 === 0;
     if (!blink) {
@@ -2468,6 +2950,17 @@ export class Game {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+
+    // 6. Ręka Arcymistrza opadająca znad stołu (Faza 2 Finałowego Bossa)
+    if (this.grandmasterHand && this.grandmasterHand.active) {
+      drawGrandmasterHand(
+        ctx,
+        this.grandmasterHand.x,
+        this.grandmasterHand.y,
+        this.grandmasterHand.zHeight,
+        theme
+      );
+    }
   }
 
   _renderBullets(ctx, theme) {
