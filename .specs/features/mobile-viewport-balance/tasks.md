@@ -152,9 +152,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Pointerdown, pointermove, pointerup track multiple simultaneous touches
-- [ ] Default touch scrolling and gestures prevented on canvas
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Pointerdown, pointermove, pointerup track multiple simultaneous touches
+- [x] Default touch scrolling and gestures prevented on canvas
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: quick

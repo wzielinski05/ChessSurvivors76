@@ -25,6 +25,10 @@ export class InputManager {
     this.mouseJustLeft = false;
     this.mouseJustRight = false;
 
+    this.activePointers = new Map();
+    this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    this.touchActive = false;
+
     this.hasFocus = document.hasFocus ? document.hasFocus() : true;
     this.onBlurCallback = null;
     this.onFocusCallback = null;
@@ -55,20 +59,60 @@ export class InputManager {
     }, { passive: false });
 
     // Przeliczanie pozycji kursora ze Screen Space na Virtual Canvas Space
-    const updateMousePos = (e) => {
+    const screenToVirtual = (clientX, clientY) => {
       const rect = this.canvas.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
-      this.mouseX = ((e.clientX - rect.left) / rect.width) * this.virtualWidth;
-      this.mouseY = ((e.clientY - rect.top) / rect.height) * this.virtualHeight;
+      if (rect.width <= 0 || rect.height <= 0) return { x: this.virtualWidth / 2, y: this.virtualHeight / 2 };
+      return {
+        x: ((clientX - rect.left) / rect.width) * this.virtualWidth,
+        y: ((clientY - rect.top) / rect.height) * this.virtualHeight
+      };
+    };
+
+    const updateMousePos = (e) => {
+      const pos = screenToVirtual(e.clientX, e.clientY);
+      this.mouseX = pos.x;
+      this.mouseY = pos.y;
     };
 
     window.addEventListener('pointermove', (e) => {
       updateMousePos(e);
+      if (this.activePointers.has(e.pointerId)) {
+        const p = this.activePointers.get(e.pointerId);
+        const pos = screenToVirtual(e.clientX, e.clientY);
+        p.x = pos.x;
+        p.y = pos.y;
+        if (this._handlePointerMove) {
+          this._handlePointerMove(p);
+        }
+      }
     }, { passive: true });
 
     window.addEventListener('pointerdown', (e) => {
       AudioEngine.init();
-      updateMousePos(e);
+      const pos = screenToVirtual(e.clientX, e.clientY);
+      this.mouseX = pos.x;
+      this.mouseY = pos.y;
+
+      if (e.pointerType === 'touch') {
+        this.isTouchDevice = true;
+        this.touchActive = true;
+      }
+
+      const pointer = {
+        id: e.pointerId,
+        type: e.pointerType,
+        x: pos.x,
+        y: pos.y,
+        startX: pos.x,
+        startY: pos.y,
+        startTime: performance.now(),
+        consumed: false
+      };
+      this.activePointers.set(e.pointerId, pointer);
+
+      if (this._handlePointerDown) {
+        this._handlePointerDown(pointer);
+      }
 
       // Wymuszenie focusu na canvasie wewnątrz iframe Google Apps Script
       if (document.activeElement !== this.canvas) {
@@ -79,22 +123,37 @@ export class InputManager {
         if (this.onFocusCallback) this.onFocusCallback();
       }
 
-      if (e.button === 0) {
+      if (e.button === 0 && !pointer.consumed) {
         this.mouseDownLeft = true;
         this.mouseJustLeft = true;
-      } else if (e.button === 2) {
+      } else if (e.button === 2 && !pointer.consumed) {
         this.mouseDownRight = true;
         this.mouseJustRight = true;
       }
     });
 
-    window.addEventListener('pointerup', (e) => {
-      if (e.button === 0) {
+    const handlePointerEnd = (e) => {
+      if (this.activePointers.has(e.pointerId)) {
+        const p = this.activePointers.get(e.pointerId);
+        if (this._handlePointerUp) {
+          this._handlePointerUp(p);
+        }
+        this.activePointers.delete(e.pointerId);
+      }
+
+      if (e.button === 0 || this.activePointers.size === 0) {
         this.mouseDownLeft = false;
-      } else if (e.button === 2) {
+      }
+      if (e.button === 2) {
         this.mouseDownRight = false;
       }
-    });
+      if (this.activePointers.size === 0) {
+        if (this._resetTouchControls) this._resetTouchControls();
+      }
+    };
+
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
 
     // Blokada menu kontekstowego przy używaniu PPM do En Passant Dash
     window.addEventListener('contextmenu', (e) => {
