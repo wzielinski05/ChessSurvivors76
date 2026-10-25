@@ -546,8 +546,15 @@ export class Game {
     e.stateTimer = 0.75 + Math.random() * 0.9;
     e.facingAngle = Math.atan2(this.player.y - sy, this.player.x - sx);
     e.pinnedTimer = 0;
-    e.frozenTimer = 0;
+    e.pinTimer = 0;
+    e.isPinned = false;
+    e.pinVulnerability = 1.0;
+    e.mateStep = 0;
+    e.mateTimer = 0;
     e.stunTimer = 0;
+    e.forkHitTimestamp = 0;
+    e.lastComboHitTime = 0;
+    e.frozenTimer = 0;
     e.hitFlash = 0;
     e.animPhase = Math.random() * Math.PI * 2;
     e.scaleX = 1;
@@ -2000,13 +2007,37 @@ export class Game {
       e.scaleX += (1 - e.scaleX) * Math.min(1, dt * 14);
       e.scaleY += (1 - e.scaleY) * Math.min(1, dt * 14);
 
-      // Zamrożenie z Okrzyku "Szach!"
+      // Zamrożenie z Okrzyku "Szach!" lub ogłuszenie (Royal Fork)
       if (e.frozenTimer > 0) {
         e.frozenTimer -= dt;
         continue;
       }
+      if (e.stunTimer > 0) {
+        e.stunTimer -= dt;
+        if (e.stunTimer <= 0) e.stunTimer = 0;
+        continue;
+      }
 
-      // Przyszpilenie w miejscu z perka "Związanie" (Pinning Shot)
+      // Aktualizacja Związania (TAC-01, TAC-02)
+      if (e.pinTimer > 0) {
+        e.pinTimer -= dt;
+        if (e.pinTimer <= 0) {
+          e.pinTimer = 0;
+          e.isPinned = false;
+          e.pinVulnerability = 1.0;
+        }
+      }
+
+      // Aktualizacja kombinacji Szach-Mat (TAC-07, TAC-08, TAC-09)
+      if (e.mateTimer > 0) {
+        e.mateTimer -= dt;
+        if (e.mateTimer <= 0) {
+          e.mateTimer = 0;
+          e.mateStep = 0;
+        }
+      }
+
+      // Przyszpilenie w miejscu z perka "Związanie" (kompatybilność wsteczna)
       if (e.pinnedTimer > 0) {
         e.pinnedTimer -= dt;
       }

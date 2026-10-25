@@ -75,8 +75,8 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Enemy entities initialize with tactical status fields reset to zero/false
-- [ ] Gate check passes: `npm run build`
+- [x] Enemy entities initialize with tactical status fields reset to zero/false
+- [x] Gate check passes: `npm run build`
 
 **Tests**: unit
 **Gate**: quick
@@ -238,3 +238,4 @@ T8
 
 **Tests**: visual
 **Gate**: build
+
