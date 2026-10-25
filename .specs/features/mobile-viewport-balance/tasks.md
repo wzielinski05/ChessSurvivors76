@@ -242,9 +242,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Right stick activates in right half of screen when Twin-Stick mode is active
-- [ ] Right stick direction overrides auto-aim with manual 360-degree shooting
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Right stick activates in right half of screen when Twin-Stick mode is active
+- [x] Right stick direction overrides auto-aim with manual 360-degree shooting
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: unit
 **Gate**: quick

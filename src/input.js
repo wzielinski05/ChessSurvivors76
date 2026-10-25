@@ -42,6 +42,19 @@ export class InputManager {
       vy: 0
     };
 
+    // Tryb celowania i prawy drążek w trybie Twin-Stick (TOUCH-05)
+    this.aimMode = 'hybrid'; // 'hybrid' | 'twinstick'
+    this.rightStick = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      maxRadius: 54,
+      angle: 0
+    };
+
     // Przyciski akcji dotykowych (TOUCH-06)
     this.touchDashPressed = false;
     this.touchPerkPressed = false;
@@ -106,6 +119,19 @@ export class InputManager {
       return;
     }
 
+    // 2B. Prawa strefa ekranu dla celowania Twin-Stick Touch (TOUCH-05)
+    if (this.aimMode === 'twinstick' && pointer.x >= this.virtualWidth * 0.48 && !this.rightStick.active) {
+      this.rightStick.active = true;
+      this.rightStick.pointerId = pointer.id;
+      this.rightStick.startX = pointer.x;
+      this.rightStick.startY = pointer.y;
+      this.rightStick.currentX = pointer.x;
+      this.rightStick.currentY = pointer.y;
+      this.rightStick.angle = 0;
+      pointer.consumed = true;
+      return;
+    }
+
     // 3. Rejestracja pojedynczego tapnięcia / kliknięcia do blokowania celu wroga (TOUCH-04)
     this.lastTap = { x: pointer.x, y: pointer.y, consumed: false };
   }
@@ -135,6 +161,25 @@ export class InputManager {
         this.joystick.vy = 0;
       }
     }
+
+    if (this.rightStick.active && pointer.id === this.rightStick.pointerId) {
+      const dx = pointer.x - this.rightStick.startX;
+      const dy = pointer.y - this.rightStick.startY;
+      const dist = Math.hypot(dx, dy);
+      const maxR = this.rightStick.maxRadius;
+
+      if (dist > maxR) {
+        this.rightStick.currentX = this.rightStick.startX + (dx / dist) * maxR;
+        this.rightStick.currentY = this.rightStick.startY + (dy / dist) * maxR;
+      } else {
+        this.rightStick.currentX = pointer.x;
+        this.rightStick.currentY = pointer.y;
+      }
+
+      if (dist > 8) {
+        this.rightStick.angle = Math.atan2(dy, dx);
+      }
+    }
   }
 
   _handlePointerUp(pointer) {
@@ -144,6 +189,10 @@ export class InputManager {
       this.joystick.vx = 0;
       this.joystick.vy = 0;
     }
+    if (this.rightStick.active && pointer.id === this.rightStick.pointerId) {
+      this.rightStick.active = false;
+      this.rightStick.pointerId = null;
+    }
   }
 
   _resetTouchControls() {
@@ -151,6 +200,8 @@ export class InputManager {
     this.joystick.pointerId = null;
     this.joystick.vx = 0;
     this.joystick.vy = 0;
+    this.rightStick.active = false;
+    this.rightStick.pointerId = null;
   }
 
   _bindEvents() {

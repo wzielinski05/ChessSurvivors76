@@ -674,6 +674,40 @@ export function drawTouchControls(ctx, input, theme, player, activeAbilityCooldo
     ctx.globalAlpha = 1;
   }
 
+  // 1B. Wirtualny joystick celowania w trybie Twin-Stick (TOUCH-05)
+  if (input.aimMode === 'twinstick') {
+    const rJoy = input.rightStick;
+    if (rJoy && rJoy.active) {
+      ctx.strokeStyle = '#ff5533';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(rJoy.startX, rJoy.startY, rJoy.maxRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ff5533';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(rJoy.currentX, rJoy.currentY, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (input.isTouchDevice || input.touchActive) {
+      const guideRX = input.virtualWidth - 74;
+      const guideRY = input.virtualHeight - 74;
+      ctx.strokeStyle = '#ff5533';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath();
+      ctx.arc(guideRX, guideRY, 44, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // 2. Przyciski akcji dotykowych w prawej strefie
   if (input.getTouchButtonLayout) {
     const btns = input.getTouchButtonLayout();

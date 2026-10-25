@@ -287,6 +287,20 @@ export class Game {
     );
   }
 
+  toggleAimMode() {
+    this.aimMode = this.aimMode === 'hybrid' ? 'twinstick' : 'hybrid';
+    if (this.input) {
+      this.input.aimMode = this.aimMode;
+    }
+    this.spawnFloatingText(
+      this.aimMode === 'twinstick' ? 'CELOWANIE: TWIN-STICK' : 'CELOWANIE: HYBRYDA',
+      this.player.x,
+      this.player.y - 24,
+      this.theme.uiAccent,
+      1.0
+    );
+  }
+
   addTrauma(amount) {
     this.trauma = Math.min(1, this.trauma + amount);
   }
@@ -830,6 +844,11 @@ export class Game {
     // Przełączanie palet graficznych w locie pod klawiszem T (dostępne zawsze)
     if (this.input.consumeJustPressed('KeyT')) {
       this.cycleTheme();
+    }
+
+    // Przełączanie trybu celowania mobilnego pod klawiszem J (TOUCH-05)
+    if (this.input.consumeJustPressed('KeyJ')) {
+      this.toggleAimMode();
     }
 
     // Wywołanie ekranu wyboru Tempa pod klawiszem M
