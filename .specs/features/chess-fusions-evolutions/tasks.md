@@ -129,9 +129,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Empress primary fire shoots siege cannon ball piercing 2 targets
-- [ ] On third impact or wall collision, explodes into 4 diagonal horseshoe sparks with Pinning
-- [ ] Gate check passes: `npm run build`
+- [x] Empress primary fire shoots siege cannon ball piercing 2 targets
+- [x] On third impact or wall collision, explodes into 4 diagonal horseshoe sparks with Pinning
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

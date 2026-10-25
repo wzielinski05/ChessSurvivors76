@@ -518,6 +518,7 @@ export class Game {
     b.isCrit = isCrit;
     b.knockbackMult = knockbackMult;
     b.targetEnemy = null;
+    b.causesPin = false;
     return b;
   }
 
@@ -2041,6 +2042,24 @@ export class Game {
           kbMult * 1.4
         );
       }
+    } else if (p.classId === 'empress') {
+      // CESARKA: Działo oblężnicze (Kanonada Oblężnicza - FUS-02)
+      const spd = 480;
+      this.spawnBullet(
+        muzzleX,
+        muzzleY,
+        Math.cos(angle) * spd,
+        Math.sin(angle) * spd,
+        false,
+        9.5,
+        4.2 * dmgMult * critMult,
+        1.8,
+        'siege_cannon',
+        0,
+        2,
+        isCrit,
+        kbMult * 2.8
+      );
     } else {
       // PIONEK: Pojedynczy precyzyjny strzał wiórem drewna
       const spd = 590;
@@ -2806,6 +2825,9 @@ export class Game {
         b.y < bounds.top - 18 ||
         b.y > bounds.bottom + 18
       ) {
+        if (!b.isEnemy && b.kind === 'siege_cannon') {
+          this._detonateSiegeCannon(b.x, b.y, b.damage * 0.65);
+        }
         this.spawnParticles(
           b.x,
           b.y,
@@ -2926,6 +2948,9 @@ export class Game {
             }
 
             this._checkPinning(e, b.vx, b.vy);
+            if (b.causesPin) {
+              this._applyPin(e, 2.0);
+            }
             if (b.kind === 'fork_shard') {
               this._handleForkImpact(e);
             }
@@ -2942,6 +2967,9 @@ export class Game {
             if (b.pierceLeft > 0) {
               b.pierceLeft--;
             } else {
+              if (!b.isEnemy && b.kind === 'siege_cannon') {
+                this._detonateSiegeCannon(b.x, b.y, b.damage * 0.65);
+              }
               this.pools.bullets.release(b);
               break;
             }
@@ -3002,22 +3030,60 @@ export class Game {
     }
 
     if (targetBehind) {
-      const isBoss = e.type === 'king' || e.type === 'black_queen';
-      e.pinTimer = 2.0;
-      e.isPinned = true;
-      e.pinVulnerability = isBoss ? 1.20 : 1.35;
-      if (!isBoss) {
-        e.pinnedTimer = 2.0;
-        e.vx = 0;
-        e.vy = 0;
-      }
-      this.spawnFloatingText('ZWIĄZANIE!', e.x, e.y - 28, '#55ddff', 1.05);
-      AudioEngine.playShieldDeflect();
-      this.spawnParticles(e.x, e.y, 14, '#55ddff', 60, 200);
+      this._applyPin(e, 2.0);
       return true;
     }
 
     return false;
+  }
+
+  // Aplikacja stanu Związania (Zero-GC, kompatybilna z bossami)
+  _applyPin(e, duration = 2.0) {
+    if (!e || !e.active) return;
+    const isBoss = e.type === 'king' || e.type === 'black_queen';
+    e.pinTimer = duration;
+    e.isPinned = true;
+    e.pinVulnerability = isBoss ? 1.20 : 1.35;
+    if (!isBoss) {
+      e.pinnedTimer = duration;
+      e.vx = 0;
+      e.vy = 0;
+    }
+    this.spawnFloatingText('ZWIĄZANIE!', e.x, e.y - 28, '#55ddff', 1.05);
+    AudioEngine.playShieldDeflect();
+    this.spawnParticles(e.x, e.y, 14, '#55ddff', 60, 200);
+  }
+
+  // Detonacja kuli armatniej Cesarki w 4 skośne szrapnele Związania (FUS-02)
+  _detonateSiegeCannon(x, y, shrapnelDmg = 2.5) {
+    this.spawnParticles(x, y, 16, '#ffaa44', 70, 220);
+    this.spawnParticles(x, y, 8, '#ffffff', 80, 180);
+    this.spawnShockwaveRing(x, y, 64, '#ffaa44', 0.28);
+    AudioEngine.playKnightSlam();
+    this.addTrauma(0.22);
+    const spd = 600;
+    const angles = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
+    for (let i = 0; i < 4; i++) {
+      const a = angles[i];
+      const shard = this.spawnBullet(
+        x,
+        y,
+        Math.cos(a) * spd,
+        Math.sin(a) * spd,
+        false,
+        5.5,
+        shrapnelDmg,
+        0.8,
+        'horseshoe',
+        0,
+        0,
+        false,
+        1.4
+      );
+      if (shard) {
+        shard.causesPin = true;
+      }
+    }
   }
 
   _triggerPinShatter(sourceEnemy, baseDmg = 3.0) {
@@ -4082,6 +4148,20 @@ export class Game {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(-b.radius * 1.2, -b.radius * 0.25, b.radius * 2.4, b.radius * 0.5);
         ctx.restore();
+      } else if (b.kind === 'siege_cannon') {
+        // Ciężka kula armatnia Cesarki (FUS-02)
+        ctx.fillStyle = '#221a20';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffaa33';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius * 0.45, 0, Math.PI * 2);
+        ctx.fill();
       } else {
         ctx.fillStyle = color;
         ctx.beginPath();
