@@ -1539,6 +1539,17 @@ export class Game {
       }
     }
 
+    // Regeneracja Bastionu Frontalnego Cesarki (do 4 ładunków, 1 co 12.0s) (FUS-04)
+    if (p.classId === 'empress' && p.bulwarkShieldCharges < 4) {
+      p.bulwarkRegenTimer += dt;
+      if (p.bulwarkRegenTimer >= 12.0) {
+        p.bulwarkRegenTimer = 0;
+        p.bulwarkShieldCharges++;
+        this.spawnFloatingText(`+1 BASTION (${p.bulwarkShieldCharges}/4)`, p.x, p.y - 24, '#ffaa44', 0.95);
+        AudioEngine.playShieldDeflect();
+      }
+    }
+
     // Obrót drona-pionka (Poświęcenie Pionka)
     this.droneAngle += dt * 3.8;
 
@@ -1584,6 +1595,19 @@ export class Game {
           p.scaleX = 1.4;
           p.scaleY = 0.65;
           this._triggerKnightLeapSlam(p.x, p.y);
+        }
+      } else if (p.classId === 'empress') {
+        // Siege Leap: lot paraboliczny (0.7s) + uderzenie obszarowe 180px i ogłuszenie (FUS-03)
+        const progress = clamp(1 - p.dashTimer / 0.7, 0, 1);
+        p.x = p.leapStartX + (p.leapTargetX - p.leapStartX) * progress;
+        p.y = p.leapStartY + (p.leapTargetY - p.leapStartY) * progress;
+        p.zHeight = Math.sin(progress * Math.PI) * 125;
+
+        if (p.dashTimer <= 0) {
+          p.zHeight = 0;
+          p.scaleX = 1.5;
+          p.scaleY = 0.6;
+          this._triggerSiegeLeapSlam(p.x, p.y);
         }
       } else {
         p.x += p.dashVx * dt;
@@ -1768,6 +1792,21 @@ export class Game {
       p.dashVy = dy * 680;
       p.dashTimer = 0.15;
       AudioEngine.playDash();
+    } else if (p.classId === 'empress') {
+      // SIEGE LEAP (FUS-03): Paraboliczny skok taranujący na odległość do 260px
+      p.leapStartX = p.x;
+      p.leapStartY = p.y;
+      const aimDx = this.input.mouseX - p.x;
+      const aimDy = this.input.mouseY - p.y;
+      const dist = Math.min(260, Math.hypot(aimDx, aimDy) || 160);
+      const ang = Math.atan2(aimDy, aimDx);
+      p.leapTargetX = clamp(p.x + Math.cos(ang) * dist, bounds.left + 24, bounds.right - 24);
+      p.leapTargetY = clamp(p.y + Math.sin(ang) * dist, bounds.top + 24, bounds.bottom - 24);
+      p.dashTimer = 0.7;
+      p.dashCooldown = cls.dashCooldown;
+      p.invulnTimer = Math.max(p.invulnTimer, 0.72);
+      AudioEngine.playDash();
+      this.spawnFloatingText('SIEGE LEAP!', p.x, p.y - 28, '#ffaa44', 1.2);
     } else {
       // PIONEK: EN PASSANT DASH
       p.dashVx = dx * 620;
@@ -1812,6 +1851,44 @@ export class Game {
 
     // Widełki Skoczka przy lądowaniu (TAC-04)
     this._spawnKnightForkSparks(x, y, null, 2.5);
+  }
+
+  // Taranujące lądowanie Cesarki: trzęsienie ziemi 180px, ogłuszenie 1.8s, czyszczenie kul (FUS-03)
+  _triggerSiegeLeapSlam(x, y) {
+    const slamRadius = 180;
+    const slamRadiusSq = slamRadius * slamRadius;
+    AudioEngine.playRookThud();
+    this.addTrauma(0.68);
+    this.triggerHitstop(0.055);
+    this.spawnShockwaveRing(x, y, slamRadius, '#ffaa44', 0.48);
+    this.spawnParticles(x, y, 32, '#ffaa44', 80, 260);
+    this.spawnParticles(x, y, 16, '#ffffff', 100, 220);
+
+    // 1. Kasowanie pocisków wrogów w promieniu 180px (FUS-03)
+    const bullets = this.pools.bullets.items;
+    for (let i = 0; i < this.pools.bullets.size; i++) {
+      const b = bullets[i];
+      if (b.active && b.isEnemy && distSq(x, y, b.x, b.y) <= slamRadiusSq) {
+        this.pools.bullets.release(b);
+      }
+    }
+
+    // 2. Obrażenia 350% (14.0) i ogłuszenie 1.8s dla wrogów w obszarze lądowania (FUS-03)
+    const enemies = this.pools.enemies.items;
+    for (let i = 0; i < this.pools.enemies.size; i++) {
+      const e = enemies[i];
+      if (!e.active) continue;
+      const rSum = slamRadius + e.radius;
+      if (distSq(x, y, e.x, e.y) <= rSum * rSum) {
+        const dx = e.x - x || 1;
+        const dy = e.y - y || 1;
+        e.stunTimer = Math.max(e.stunTimer, 1.8);
+        this.damageEnemy(e, 14.0, dx * 4, dy * 4, true, true);
+      }
+    }
+
+    // Widełki Skoczka przy lądowaniu (TAC-04)
+    this._spawnKnightForkSparks(x, y, null, 3.0);
   }
 
   _fireDiagonalCleave(ox, oy, bounds) {
@@ -2884,6 +2961,26 @@ export class Game {
                 p.y - 26,
                 '#55ddff',
                 1.0
+              );
+              continue;
+            }
+            this.pools.bullets.release(b);
+            this.damagePlayer(b.damage, b.x, b.y);
+          } else if (p.classId === 'empress' && p.bulwarkShieldCharges > 0) {
+            const incAngle = Math.atan2(b.prevY - p.y, b.prevX - p.x);
+            if (Math.abs(angleDiff(incAngle, playerAimAngle)) <= Math.PI * 0.5) {
+              p.bulwarkShieldCharges--;
+              p.bulwarkRegenTimer = 0;
+              this.pools.bullets.release(b);
+              AudioEngine.playShieldDeflect();
+              this.addTrauma(0.2);
+              this.spawnParticles(b.x, b.y, 12, '#ffaa44', 50, 170);
+              this.spawnFloatingText(
+                `BASTION! (${p.bulwarkShieldCharges}/4)`,
+                p.x,
+                p.y - 26,
+                '#ffaa44',
+                1.05
               );
               continue;
             }
@@ -4056,7 +4153,12 @@ export class Game {
         glow,
         {
           facingAngle: aimAngle,
-          shieldCharges: p.classId === 'rook' ? p.rookShieldCharges : 0,
+          shieldCharges:
+            p.classId === 'rook'
+              ? p.rookShieldCharges
+              : p.classId === 'empress'
+              ? p.bulwarkShieldCharges
+              : 0,
           isStunned: false,
           timeSec: this.time
         }

@@ -151,9 +151,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Special leap creates 180px earthquake, wipes enemy bullets, and stuns enemies for 1.8s
-- [ ] Bulwark shield deflects incoming frontal bullets, consuming charges up to 4, regenerating every 12.0s
-- [ ] Gate check passes: `npm run build`
+- [x] Special leap creates 180px earthquake, wipes enemy bullets, and stuns enemies for 1.8s
+- [x] Bulwark shield deflects incoming frontal bullets, consuming charges up to 4, regenerating every 12.0s
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
