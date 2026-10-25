@@ -52,12 +52,21 @@
 
 ## Handoff
 
-- **Feature**: chess-combat-tactics / .specs/features/chess-combat-tactics/tasks.md
-- **Phase / Task**: Tasks / Przygotowano spec.md, design.md i tasks.md (gotowe do zatwierdzenia)
-- **Completed**: Walidacja formalna specyfikacji (validate_spec: 0 errors) i zadań (validate_tasks: 0 errors)
-- **In-progress** (file:line): `.specs/features/chess-combat-tactics/tasks.md`
-- **Next step**: Rozpoczęcie Fazy 1 (T1: pola statusu taktycznego i cykl życia Zero-GC)
+- **Feature**: chess-combat-tactics / .specs/features/chess-combat-tactics/spec.md
+- **Phase / Task**: Verify / Krok 1 (chess-combat-tactics) UKOŃCZONY i ZWERYFIKOWANY (PASS)
+- **Completed**:
+  - T1: Pola statusu taktycznego i cykl życia Zero-GC (`d99a5f3`)
+  - T2: Raycast stożkowy dla Związania, unieruchomienie i podatność na obrażenia (`f7abfa5`)
+  - T3: Eksplozja obszarowa Pin Shatter przy śmierci i taranowaniu dashem (`213779e`)
+  - T4: Odłamki Widełek Skoczka samonaprowadzające na krytykach i lądowaniach (`7d1c0fa`)
+  - T5: Królewskie Widełki (ogłuszenie, żeton) oraz przerywanie telegrafu bossa (`277d741`)
+  - T6: Szach I oraz Szach Podwójny II z redukcją prędkości i ominięciem pancerza (`91d99e2`)
+  - T7: Detonacja Szach-Mat, czyszczenie pocisków w promieniu 200px i bonus czasu (`38d2b03`)
+  - T8: Wizualia taktyczne Faux-Glow: pierścienie Związania i korony I/II (`2f9492f`)
+  - Niezależna weryfikacja author != verifier: Raport `validation.md` (10/10 PASS)
+- **In-progress** (file:line): Oczekiwanie na wybór kolejnego Kroku z Planu Rozwoju (Krok 2: Fuzje i Ewolucje Figur)
+- **Next step**: Krok 2: Fuzje i Ewolucje Figur (`chess-fusions-evolutions`) zgodnie z tlc-spec-driven
 - **Blockers**: none
-- **Uncommitted files**: `.specs/features/chess-combat-tactics/`
+- **Uncommitted files**: none
 - **Branch**: main
 

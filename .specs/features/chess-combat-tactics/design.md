@@ -2,7 +2,7 @@
 
 **Feature**: `chess-combat-tactics`
 **Spec**: `.specs/features/chess-combat-tactics/spec.md`
-**Status**: Ready for Review
+**Status**: Verified
 **Date**: 2026-10-25
 
 ---
@@ -104,3 +104,4 @@ enemy = {
    - **Mitigation**: Filter by squared distance ($dx^2 + dy^2 \le 250^2 = 62500$) before any trigonometric checks. Max 1 check per bullet impact.
 2. **Risk**: Checkmate combo could accidentally trigger too easily on high-fire-rate classes.
    - **Mitigation**: Hits must be separated by at least $0.25\text{ s}$ cooldown per enemy to count as distinct combo steps (preventing single shotgun blasts from instantly triggering Checkmate).
+

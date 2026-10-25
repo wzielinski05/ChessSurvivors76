@@ -1,7 +1,7 @@
 # Chess Combat Tactics Spec
 
 **Feature**: `chess-combat-tactics`
-**Status**: Ready for Review
+**Status**: Verified
 **Date**: 2026-10-25
 
 ---
@@ -81,15 +81,16 @@ so that landing full tactical sequences triggers a screen-clearing detonation an
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| TAC-01 | P1: Związanie (Pinning & Skewer) | Design | pending |
-| TAC-02 | P1: Związanie (Pinning & Skewer) | Design | pending |
-| TAC-03 | P1: Związanie (Pinning & Skewer) | Design | pending |
-| TAC-04 | P2: Widełki Skoczka (Knight's Fork) | Design | pending |
-| TAC-05 | P2: Widełki Skoczka (Knight's Fork) | Design | pending |
-| TAC-06 | P2: Widełki Skoczka (Knight's Fork) | Design | pending |
-| TAC-07 | P3: Szach i Mat w 3 Ruchach | Design | pending |
-| TAC-08 | P3: Szach i Mat w 3 Ruchach | Design | pending |
-| TAC-09 | P3: Szach i Mat w 3 Ruchach | Design | pending |
-| TAC-10 | P3: Szach i Mat w 3 Ruchach | Design | pending |
+| TAC-01 | P1: Związanie (Pinning & Skewer) | Verification | passed |
+| TAC-02 | P1: Związanie (Pinning & Skewer) | Verification | passed |
+| TAC-03 | P1: Związanie (Pinning & Skewer) | Verification | passed |
+| TAC-04 | P2: Widełki Skoczka (Knight's Fork) | Verification | passed |
+| TAC-05 | P2: Widełki Skoczka (Knight's Fork) | Verification | passed |
+| TAC-06 | P2: Widełki Skoczka (Knight's Fork) | Verification | passed |
+| TAC-07 | P3: Szach i Mat w 3 Ruchach | Verification | passed |
+| TAC-08 | P3: Szach i Mat w 3 Ruchach | Verification | passed |
+| TAC-09 | P3: Szach i Mat w 3 Ruchach | Verification | passed |
+| TAC-10 | P3: Szach i Mat w 3 Ruchach | Verification | passed |
 
-**Coverage:** 10 total, 10 mapped to design, 0 unmapped
+**Coverage:** 10 total, 10 verified passed, 0 defects
+
