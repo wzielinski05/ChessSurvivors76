@@ -83,9 +83,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] `PLAYER_CLASSES` contains entries for `empress`, `cardinal`, and `amazon` with all combat fields
-- [ ] `FUSION_RECIPES` defines base requirements, token costs, and descriptions
-- [ ] Gate check passes: `npm run build`
+- [x] `PLAYER_CLASSES` contains entries for `empress`, `cardinal`, and `amazon` with all combat fields
+- [x] `FUSION_RECIPES` defines base requirements, token costs, and descriptions
+- [x] Gate check passes: `npm run build`
 
 **Tests**: unit
 **Gate**: quick

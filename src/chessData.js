@@ -127,8 +127,83 @@ export const PLAYER_CLASSES = {
     attackDesc: 'Królewski ostrzał w 8 kierunkach jednocześnie',
     abilityDesc: 'Spowolnienie czasu o 75% na 3s + nielimitowany Dash',
     passiveDesc: 'Łączy rykoszety Gońca i siłę obalającą Wieży'
+  },
+  empress: {
+    id: 'empress',
+    name: 'CESARKA',
+    title: 'Twierdza Zagłady',
+    tier: 'fusion',
+    cost: 20,
+    radius: 13,
+    speed: 230,
+    fireRate: 0.24,
+    dashCooldown: 3.20,
+    abilityName: 'SIEGE LEAP',
+    attackDesc: 'Działo oblężnicze (przebicie 2) + 4 szrapnele Związania',
+    abilityDesc: 'Taranujący skok: trzęsienie ziemi 180px, stun 1.8s, czyszczenie kul',
+    passiveDesc: 'Bastion 180°: blokuje 4 hity od frontu, regeneracja co 12s'
+  },
+  cardinal: {
+    id: 'cardinal',
+    name: 'KARDYNAŁ',
+    title: 'Arcybiskup Światła',
+    tier: 'fusion',
+    cost: 20,
+    radius: 11,
+    speed: 250,
+    fireRate: 0.18,
+    dashCooldown: 2.60,
+    abilityName: 'TRANSLOCATION',
+    attackDesc: 'Schodkowe lasery L (odskok 90° co 120px, 2 rykoszety)',
+    abilityDesc: 'Translokacja 320px + podwójny błysk Krzyża Apostolskiego',
+    passiveDesc: 'Aura Katedry (130px): -20% speed wrogów, parowanie kul +0.2s zegara'
+  },
+  amazon: {
+    id: 'amazon',
+    name: 'AMAZONKA',
+    title: 'Królowa Chaosu',
+    tier: 'fusion',
+    cost: 35,
+    radius: 14,
+    speed: 275,
+    fireRate: 0.14,
+    dashCooldown: 12.00,
+    abilityName: 'ABSOLUTE DOMAIN',
+    attackDesc: 'Salwa 8-kierunkowa + Samonaprowadzające Podkowy Chaosu',
+    abilityDesc: 'Władza Absolutna: staza 4.0s (-85% wrogów, zamrożenie i odbijanie kul)',
+    passiveDesc: 'Cesarski Mat: co 5 killi automatyczna Detonacja Mata na czempionie'
   }
 };
+
+export const FUSION_RECIPES = [
+  {
+    id: 'empress',
+    name: 'Cesarka',
+    title: 'Wieża + Skoczek',
+    baseClass: 'rook',
+    subClass: 'knight',
+    tokenCost: 20,
+    desc: 'Fuzja Wieży i Skoczka: Kanonada oblężnicza, Taranujący Skok i Bastion 180°.'
+  },
+  {
+    id: 'cardinal',
+    name: 'Kardynał',
+    title: 'Goniec + Skoczek',
+    baseClass: 'bishop',
+    subClass: 'knight',
+    tokenCost: 20,
+    desc: 'Fuzja Gońca i Skoczka: Schodkowe lasery L, Błysk Translokacyjny i Aura Katedry.'
+  },
+  {
+    id: 'amazon',
+    name: 'Amazonka',
+    title: 'Hetman + Skoczek',
+    baseClass: 'queen',
+    subClass: 'knight',
+    tokenCost: 35,
+    desc: 'Najwyższa Fuzja Hetmana i Skoczka: Salwa Chaosu, Władza Absolutna i Cesarski Mat.'
+  }
+];
 
 export const GAMBIT_SHOP_ITEMS = [
   {
