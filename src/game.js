@@ -68,7 +68,16 @@ export class Game {
     this.state = 'SELECT_TEMPO';
     this.autoFire = false;
     this.lockedTarget = null;
-    this.aimMode = 'hybrid'; // 'hybrid' | 'twinstick' (TOUCH-03, TOUCH-05)
+    // Domyślny tryb celowania: 'mouse' na PC, 'auto' na mobile (AIM-05)
+    const isMobileDevice =
+      typeof navigator !== 'undefined' &&
+      navigator.maxTouchPoints > 0 &&
+      typeof screen !== 'undefined' &&
+      screen.width <= 1024;
+    this.aimMode = isMobileDevice ? 'auto' : 'mouse';
+    if (this.input) {
+      this.input.aimMode = this.aimMode;
+    }
     this.hudMode = 'top'; // 'top' | 'bottom' | 'compact' (HUD-01..HUD-04)
     this.lastAimAngle = 0;
 
@@ -291,17 +300,28 @@ export class Game {
   }
 
   toggleAimMode() {
-    this.aimMode = this.aimMode === 'hybrid' ? 'twinstick' : 'hybrid';
+    if (this.aimMode === 'mouse') {
+      this.setAimMode('auto');
+    } else if (this.aimMode === 'auto') {
+      this.setAimMode('twinstick');
+    } else {
+      this.setAimMode('mouse');
+    }
+  }
+
+  setAimMode(mode) {
+    if (mode !== 'mouse' && mode !== 'auto' && mode !== 'twinstick') return;
+    this.aimMode = mode;
     if (this.input) {
       this.input.aimMode = this.aimMode;
     }
-    this.spawnFloatingText(
-      this.aimMode === 'twinstick' ? 'CELOWANIE: TWIN-STICK' : 'CELOWANIE: HYBRYDA',
-      this.player.x,
-      this.player.y - 24,
-      this.theme.uiAccent,
-      1.0
-    );
+    const label =
+      mode === 'mouse'
+        ? 'CELOWANIE: MYSZKA'
+        : mode === 'auto'
+        ? 'CELOWANIE: AUTO-AIM'
+        : 'CELOWANIE: TWIN-STICK';
+    this.spawnFloatingText(label, this.player.x, this.player.y - 24, this.theme.uiAccent, 1.0);
   }
 
   toggleHudMode() {
@@ -1241,11 +1261,12 @@ export class Game {
     p.x = clamp(p.x, bounds.left + margin, bounds.right - margin);
     p.y = clamp(p.y, bounds.top + margin, bounds.bottom - margin);
 
-    // Strzał główny (LPM, Auto-Fire lub Auto-Aim na urządzeniach dotykowych)
-    const isTouchShooting =
-      (this.input.touchActive || this.input.isTouchDevice) &&
-      (this.aimMode !== 'twinstick' || (this.input.rightStick && this.input.rightStick.active));
-    if ((this.input.mouseDownLeft || this.autoFire || isTouchShooting) && p.fireCooldown <= 0) {
+    // Strzał główny (AIM-01..AIM-04)
+    const shouldFire =
+      (this.aimMode === 'mouse' && (this.input.mouseDownLeft || this.autoFire)) ||
+      (this.aimMode === 'auto' && (this.autoFire || this.input.mouseDownLeft || this.pools.enemies.activeCount > 0 || this.input.touchActive)) ||
+      (this.aimMode === 'twinstick' && this.input.rightStick && this.input.rightStick.active);
+    if (shouldFire && p.fireCooldown <= 0) {
       this._firePlayerWeapon();
     }
   }
@@ -1476,23 +1497,24 @@ export class Game {
   _getAimAngle() {
     const p = this.player;
 
-    // 1. Opcjonalny Twin-Stick Touch (TOUCH-05)
-    if (this.aimMode === 'twinstick' && this.input.rightStick && this.input.rightStick.active) {
-      this.lastAimAngle = this.input.rightStick.angle;
-      return this.lastAimAngle;
-    }
-
-    // 2. Cel zablokowany przez tapnięcie / touch-focus (TOUCH-04)
-    if (this.lockedTarget) {
-      if (this.lockedTarget.active && this.lockedTarget.hp > 0) {
-        this.lastAimAngle = Math.atan2(this.lockedTarget.y - p.y, this.lockedTarget.x - p.x);
-        return this.lastAimAngle;
+    // 1. Tryb Twin-Stick (AIM-04)
+    if (this.aimMode === 'twinstick') {
+      if (this.input.rightStick && this.input.rightStick.active) {
+        this.lastAimAngle = this.input.rightStick.angle;
       }
-      this.lockedTarget = null;
+      return this.lastAimAngle || 0;
     }
 
-    // 3. Auto-Aim na urządzeniach dotykowych lub przy aktywnym dotyku (TOUCH-03)
-    if (this.input.isTouchDevice || this.input.touchActive) {
+    // 2. Tryb Auto-Aim (AIM-03)
+    if (this.aimMode === 'auto') {
+      if (this.lockedTarget) {
+        if (this.lockedTarget.active && this.lockedTarget.hp > 0) {
+          this.lastAimAngle = Math.atan2(this.lockedTarget.y - p.y, this.lockedTarget.x - p.x);
+          return this.lastAimAngle;
+        }
+        this.lockedTarget = null;
+      }
+
       let nearest = null;
       let minDistSq = Infinity;
       const enemies = this.pools.enemies.items;
@@ -1517,7 +1539,6 @@ export class Game {
         return this.lastAimAngle;
       }
 
-      // W razie braku wrogów, celujemy w kierunku poruszania się
       const move = this.input.getMoveVector();
       if (move.x !== 0 || move.y !== 0) {
         this.lastAimAngle = Math.atan2(move.y, move.x);
@@ -1527,8 +1548,9 @@ export class Game {
       return this.lastAimAngle || 0;
     }
 
-    // 4. Standardowe celowanie kursorem myszy na desktopie
-    return Math.atan2(this.input.mouseY - p.y, this.input.mouseX - p.x);
+    // 3. Tryb Myszki (Classic Mouse Aim - AIM-01)
+    this.lastAimAngle = Math.atan2(this.input.mouseY - p.y, this.input.mouseX - p.x);
+    return this.lastAimAngle;
   }
 
   _firePlayerWeapon() {
@@ -2886,8 +2908,8 @@ export class Game {
       renderVictoryOverlay(ctx, this, theme);
     }
 
-    // Celownik myszki rysowany wyłącznie na urządzeniach ze wskaźnikiem myszy (nie w trybie czysto dotykowym)
-    if (!this.input.touchActive) {
+    // Celownik myszki rysowany wyłącznie w trybie myszki na komputerze (AIM-02, AIM-03)
+    if (this.aimMode === 'mouse' && !this.input.touchActive && this.state === 'PLAYING') {
       drawCrosshair(
         ctx,
         this.input.mouseX,

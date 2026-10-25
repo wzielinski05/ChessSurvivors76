@@ -114,9 +114,9 @@ T5 -> T6
 - Skill: NONE
 
 **Done when**:
-- [ ] In Classic Mouse mode player shoots exactly towards mouse cursor with visible crosshair
-- [ ] In Auto-Aim mode mouse crosshair is hidden and weapon auto-targets nearest enemy
-- [ ] Gate check passes: `npm run build`
+- [x] In Classic Mouse mode player shoots exactly towards mouse cursor with visible crosshair
+- [x] In Auto-Aim mode mouse crosshair is hidden and weapon auto-targets nearest enemy
+- [x] Gate check passes: `npm run build`
 
 **Tests**: unit
 **Gate**: quick
