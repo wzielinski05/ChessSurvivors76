@@ -493,6 +493,7 @@ export class Game {
     b.pierceLeft = pierceLeft;
     b.isCrit = isCrit;
     b.knockbackMult = knockbackMult;
+    b.targetEnemy = null;
     return b;
   }
 
@@ -1737,6 +1738,9 @@ export class Game {
         this.damageEnemy(e, 3.5, dx * 4, dy * 4, true, true);
       }
     }
+
+    // Widełki Skoczka przy lądowaniu (TAC-04)
+    this._spawnKnightForkSparks(x, y, null, 2.5);
   }
 
   _fireDiagonalCleave(ox, oy, bounds) {
@@ -1801,6 +1805,7 @@ export class Game {
           e.stunTimer = Math.max(e.stunTimer, 2.0);
           e.state = 'stunned';
           this.spawnFloatingText('WBITY W BANDĘ!', e.x, e.y - 22, this.theme.uiAccent, 1.1);
+          this._spawnKnightForkSparks(e.x, e.y, e, 2.0);
         }
         this.damageEnemy(e, hitWall ? 4.5 : 2.5, p.dashVx, p.dashVy, true, true);
       }
@@ -2676,6 +2681,21 @@ export class Game {
       if (!b.active) continue;
 
       const stepDt = b.isEnemy ? worldDt : dt;
+
+      // Samonaprowadzanie odłamków widełek na cel (TAC-04)
+      if (!b.isEnemy && b.kind === 'fork_shard' && b.targetEnemy && b.targetEnemy.active) {
+        const tDx = b.targetEnemy.x - b.x;
+        const tDy = b.targetEnemy.y - b.y;
+        const tDist = Math.hypot(tDx, tDy) || 1;
+        const spd = 480;
+        const desiredVx = (tDx / tDist) * spd;
+        const desiredVy = (tDy / tDist) * spd;
+        const steer = Math.min(1.0, 12.0 * stepDt);
+        b.vx += (desiredVx - b.vx) * steer;
+        b.vy += (desiredVy - b.vy) * steer;
+        b.rotation = Math.atan2(b.vy, b.vx);
+      }
+
       b.prevX = b.x;
       b.prevY = b.y;
       b.x += b.vx * stepDt;
@@ -2996,9 +3016,9 @@ export class Game {
       this.spawnFloatingText('ZWIĄZANIE!', e.x, e.y - 30, '#55ddff', 0.95);
     }
 
-    const forkLvl = this.perks.knights_fork || 0;
-    if (isCrit && !isShard && forkLvl > 0) {
-      this._spawnKnightForkShards(e, forkLvl);
+    // Widełki Skoczka na ciosach krytycznych (TAC-04)
+    if (isCrit && !isShard) {
+      this._spawnKnightForkSparks(e.x, e.y, e, 2.0);
     }
 
     if (e.hp <= 0) {
@@ -3086,37 +3106,87 @@ export class Game {
     }
   }
 
-  _spawnKnightForkShards(sourceEnemy, forkLvl) {
+  // Widełki Skoczka: wyzwolenie samonaprowadzających odłamków ku max 2 celom (TAC-04)
+  _spawnKnightForkSparks(ox, oy, sourceEnemy = null, baseDmg = 2.0) {
     const enemies = this.pools.enemies.items;
     const size = this.pools.enemies.size;
-    let spawned = 0;
+    const maxDistSq = 350 * 350;
 
-    for (let i = 0; i < size && spawned < 2; i++) {
-      const target = enemies[i];
-      if (!target.active || target === sourceEnemy) continue;
-      const dx = target.x - sourceEnemy.x;
-      const dy = target.y - sourceEnemy.y;
-      const len = Math.hypot(dx, dy) || 1;
-      if (len < 320) {
-        const spd = 620;
-        this.spawnBullet(
-          sourceEnemy.x,
-          sourceEnemy.y,
-          (dx / len) * spd,
-          (dy / len) * spd,
-          false,
-          4.0,
-          0.85 * forkLvl,
-          0.9,
-          'fork_shard',
-          1,
-          0,
-          false,
-          1
-        );
-        spawned++;
+    let target1 = null;
+    let distSq1 = maxDistSq;
+    let target2 = null;
+    let distSq2 = maxDistSq;
+
+    for (let i = 0; i < size; i++) {
+      const e = enemies[i];
+      if (!e.active || e === sourceEnemy) continue;
+      const d2 = distSq(ox, oy, e.x, e.y);
+      if (d2 <= distSq1) {
+        target2 = target1;
+        distSq2 = distSq1;
+        target1 = e;
+        distSq1 = d2;
+      } else if (d2 < distSq2) {
+        target2 = e;
+        distSq2 = d2;
       }
     }
+
+    const forkLvl = this.perks.knights_fork || 0;
+    const dmg = baseDmg * (1 + 0.4 * forkLvl);
+
+    if (target1) {
+      const dx1 = target1.x - ox;
+      const dy1 = target1.y - oy;
+      const len1 = Math.hypot(dx1, dy1) || 1;
+      const b1 = this.spawnBullet(
+        ox,
+        oy,
+        (dx1 / len1) * 450,
+        (dy1 / len1) * 450,
+        false,
+        4.5,
+        dmg,
+        1.5,
+        'fork_shard',
+        0,
+        0,
+        false,
+        1
+      );
+      if (b1) {
+        b1.targetEnemy = target1;
+      }
+    }
+
+    if (target2) {
+      const dx2 = target2.x - ox;
+      const dy2 = target2.y - oy;
+      const len2 = Math.hypot(dx2, dy2) || 1;
+      const b2 = this.spawnBullet(
+        ox,
+        oy,
+        (dx2 / len2) * 450,
+        (dy2 / len2) * 450,
+        false,
+        4.5,
+        dmg,
+        1.5,
+        'fork_shard',
+        0,
+        0,
+        false,
+        1
+      );
+      if (b2) {
+        b2.targetEnemy = target2;
+      }
+    }
+  }
+
+  _spawnKnightForkShards(sourceEnemy, forkLvl) {
+    if (!sourceEnemy) return;
+    this._spawnKnightForkSparks(sourceEnemy.x, sourceEnemy.y, sourceEnemy, 2.0);
   }
 
   damagePlayer(dmg, sourceX, sourceY) {

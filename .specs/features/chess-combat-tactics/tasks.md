@@ -141,8 +141,8 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Critical hits and ability landings launch 2 homing fork sparks towards distinct targets
-- [ ] Gate check passes: `npm run build`
+- [x] Critical hits and ability landings launch 2 homing fork sparks towards distinct targets
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
