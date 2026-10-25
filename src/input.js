@@ -42,6 +42,11 @@ export class InputManager {
       vy: 0
     };
 
+    // Przyciski akcji dotykowych (TOUCH-06)
+    this.touchDashPressed = false;
+    this.touchPerkPressed = false;
+    this.touchShopPressed = false;
+
     this.hasFocus = document.hasFocus ? document.hasFocus() : true;
     this.onBlurCallback = null;
     this.onFocusCallback = null;
@@ -49,8 +54,44 @@ export class InputManager {
     this._bindEvents();
   }
 
+  getTouchButtonLayout() {
+    const w = this.virtualWidth;
+    const h = this.virtualHeight;
+    const isPortrait = h > w;
+    if (isPortrait) {
+      return {
+        dash: { x: w - 58, y: h - 68, radius: 34, label: 'DASH' },
+        ability: { x: w - 58, y: h - 146, radius: 26, label: 'PERK' },
+        shop: { x: w - 132, y: h - 68, radius: 25, label: 'SKLEP' }
+      };
+    }
+    return {
+      dash: { x: w - 74, y: h - 74, radius: 36, label: 'DASH' },
+      ability: { x: w - 74, y: h - 160, radius: 28, label: 'PERK' },
+      shop: { x: w - 156, y: h - 74, radius: 26, label: 'SKLEP' }
+    };
+  }
+
   _handlePointerDown(pointer) {
-    // Lewa strefa ekranu (< 52% szerokości) rezerwowana dla wirtualnego joysticka ruchu
+    // 1. Sprawdzenie kliknięć w przyciski akcji dotykowych (TOUCH-06)
+    const btns = this.getTouchButtonLayout();
+    if (Math.hypot(pointer.x - btns.dash.x, pointer.y - btns.dash.y) <= btns.dash.radius + 10) {
+      this.touchDashPressed = true;
+      pointer.consumed = true;
+      return;
+    }
+    if (Math.hypot(pointer.x - btns.ability.x, pointer.y - btns.ability.y) <= btns.ability.radius + 8) {
+      this.touchPerkPressed = true;
+      pointer.consumed = true;
+      return;
+    }
+    if (Math.hypot(pointer.x - btns.shop.x, pointer.y - btns.shop.y) <= btns.shop.radius + 8) {
+      this.touchShopPressed = true;
+      pointer.consumed = true;
+      return;
+    }
+
+    // 2. Lewa strefa ekranu (< 52% szerokości) rezerwowana dla wirtualnego joysticka ruchu (TOUCH-02)
     if (pointer.x < this.virtualWidth * 0.52 && !this.joystick.active) {
       this.joystick.active = true;
       this.joystick.pointerId = pointer.id;
@@ -251,6 +292,9 @@ export class InputManager {
     this.mouseDownRight = false;
     this.mouseJustLeft = false;
     this.mouseJustRight = false;
+    this.touchDashPressed = false;
+    this.touchPerkPressed = false;
+    this.touchShopPressed = false;
   }
 
   consumeJustPressed(code) {
@@ -277,12 +321,39 @@ export class InputManager {
     return false;
   }
 
+  consumeTouchDash() {
+    if (this.touchDashPressed) {
+      this.touchDashPressed = false;
+      return true;
+    }
+    return false;
+  }
+
+  consumeTouchPerk() {
+    if (this.touchPerkPressed) {
+      this.touchPerkPressed = false;
+      return true;
+    }
+    return false;
+  }
+
+  consumeTouchShop() {
+    if (this.touchShopPressed) {
+      this.touchShopPressed = false;
+      return true;
+    }
+    return false;
+  }
+
   endFrame() {
     for (const k in this.justPressed) {
       this.justPressed[k] = false;
     }
     this.mouseJustLeft = false;
     this.mouseJustRight = false;
+    this.touchDashPressed = false;
+    this.touchPerkPressed = false;
+    this.touchShopPressed = false;
   }
 
   // Zwraca znormalizowany wektor ruchu 360° (Klawiatura WSAD/Strzałki lub Wirtualny Joystick Dotykowy)

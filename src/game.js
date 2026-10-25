@@ -21,7 +21,8 @@ import {
   drawGrandmasterHand,
   drawGambitToken,
   drawCrosshair,
-  drawFauxGlow
+  drawFauxGlow,
+  drawTouchControls
 } from './sprites.js';
 import {
   renderGameHUD,
@@ -890,10 +891,11 @@ export class Game {
       );
     }
 
-    // Otwarcie Sklepu Gambitu i Awansu Figury w dowolnej chwili pod klawiszem TAB lub B
+    // Otwarcie Sklepu Gambitu i Awansu Figury w dowolnej chwili pod klawiszem TAB lub B (lub przyciskiem dotykowym)
     if (
       this.input.consumeJustPressed('Tab') ||
-      this.input.consumeJustPressed('KeyB')
+      this.input.consumeJustPressed('KeyB') ||
+      (this.input.consumeTouchShop && this.input.consumeTouchShop())
     ) {
       this.openGambitShop();
       this.input.endFrame();
@@ -1034,9 +1036,9 @@ export class Game {
     p.scaleX += (1 - p.scaleX) * Math.min(1, dt * 16);
     p.scaleY += (1 - p.scaleY) * Math.min(1, dt * 16);
 
-    // Użycie aktywnej zdolności Gambitu pod klawiszem [E]
+    // Użycie aktywnej zdolności Gambitu pod klawiszem [E] lub przyciskiem dotykowym
     if (
-      this.input.consumeJustPressed('KeyE') &&
+      (this.input.consumeJustPressed('KeyE') || (this.input.consumeTouchPerk && this.input.consumeTouchPerk())) &&
       this.activeAbilityId &&
       this.activeAbilityCooldown <= 0
     ) {
@@ -1045,9 +1047,11 @@ export class Game {
 
     const move = this.input.getMoveVector();
 
-    // Aktywacja zdolności specjalnej figury (Spacja lub PPM)
+    // Aktywacja zdolności specjalnej figury (Spacja, PPM lub przycisk ZRYW)
     const wantsSpecial =
-      this.input.consumeJustPressed('Space') || this.input.consumeRightClick();
+      this.input.consumeJustPressed('Space') ||
+      this.input.consumeRightClick() ||
+      (this.input.consumeTouchDash && this.input.consumeTouchDash());
     const canSpecial =
       (p.dashCooldown <= 0 || p.royalMajestyTimer > 0) && p.dashTimer <= 0;
 
@@ -2614,6 +2618,11 @@ export class Game {
     // 11. Warstwa HUD, Zegara Szachowego, Celownika oraz ekranów modalnych
     renderGameHUD(ctx, this, theme);
 
+    // Nakładka sterowania dotykowego na telefonach (TOUCH-02, TOUCH-06)
+    if (this.state === 'PLAYING' && (this.input.isTouchDevice || this.input.touchActive)) {
+      drawTouchControls(ctx, this.input, theme, this.player, this.activeAbilityCooldown);
+    }
+
     if (this.state === 'SELECT_TEMPO') {
       renderTempoSelectOverlay(ctx, this, theme);
     } else if (this.state === 'GAMBIT_SHOP') {
@@ -2626,13 +2635,16 @@ export class Game {
       renderVictoryOverlay(ctx, this, theme);
     }
 
-    drawCrosshair(
-      ctx,
-      this.input.mouseX,
-      this.input.mouseY,
-      theme,
-      this.player.dashCooldown <= 0 || this.player.royalMajestyTimer > 0
-    );
+    // Celownik myszki rysowany wyłącznie na urządzeniach ze wskaźnikiem myszy (nie w trybie czysto dotykowym)
+    if (!this.input.touchActive) {
+      drawCrosshair(
+        ctx,
+        this.input.mouseX,
+        this.input.mouseY,
+        theme,
+        this.player.dashCooldown <= 0 || this.player.royalMajestyTimer > 0
+      );
+    }
   }
 
   _renderTelegraphs(ctx, theme) {

@@ -635,3 +635,93 @@ export function drawCrosshair(ctx, x, y, theme, dashReady) {
   ctx.restore();
 }
 
+// Nakładka sterowania dotykowego na telefonach (TOUCH-02, TOUCH-06)
+export function drawTouchControls(ctx, input, theme, player, activeAbilityCooldown) {
+  ctx.save();
+
+  // 1. Wirtualny joystick ruchu w lewej strefie
+  const joy = input.joystick;
+  if (joy && joy.active) {
+    // Zewnętrzny pierścień bazy
+    ctx.strokeStyle = theme.uiAccent;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(joy.startX, joy.startY, joy.maxRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Wewnętrzna gałka pod kciukiem
+    ctx.fillStyle = theme.bulletPlayer;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(joy.currentX, joy.currentY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (input.isTouchDevice || input.touchActive) {
+    // Delikatny wskaźnik strefy dotyku w lewym dolnym rogu
+    const guideX = 74;
+    const guideY = input.virtualHeight - 74;
+    ctx.strokeStyle = theme.uiAccent;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath();
+    ctx.arc(guideX, guideY, 44, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // 2. Przyciski akcji dotykowych w prawej strefie
+  if (input.getTouchButtonLayout) {
+    const btns = input.getTouchButtonLayout();
+
+    // Przycisk Dash
+    const dashReady = player.dashCooldown <= 0 || player.royalMajestyTimer > 0;
+    ctx.fillStyle = 'rgba(10, 10, 16, 0.65)';
+    ctx.strokeStyle = dashReady ? theme.bulletPlayer : theme.uiDanger;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(btns.dash.x, btns.dash.y, btns.dash.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = dashReady ? theme.bulletPlayer : theme.uiDanger;
+    ctx.fillText('ZRYW', btns.dash.x, btns.dash.y);
+
+    // Przycisk Perk [E]
+    const perkReady = activeAbilityCooldown <= 0;
+    ctx.fillStyle = 'rgba(10, 10, 16, 0.65)';
+    ctx.strokeStyle = perkReady ? '#55ff99' : 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(btns.ability.x, btns.ability.y, btns.ability.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = perkReady ? '#55ff99' : 'rgba(255, 255, 255, 0.4)';
+    ctx.fillText('PERK', btns.ability.x, btns.ability.y);
+
+    // Przycisk Sklep
+    ctx.fillStyle = 'rgba(10, 10, 16, 0.65)';
+    ctx.strokeStyle = theme.uiAccent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(btns.shop.x, btns.shop.y, btns.shop.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = theme.uiAccent;
+    ctx.fillText('SKLEP', btns.shop.x, btns.shop.y);
+  }
+
+  ctx.restore();
+}
+

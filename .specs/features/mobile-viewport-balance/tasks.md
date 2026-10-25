@@ -196,9 +196,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Virtual joystick and action buttons rendered cleanly with opacity
-- [ ] Tapping Dash button triggers player figure ability with cooldown visual
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Virtual joystick and action buttons rendered cleanly with opacity
+- [x] Tapping Dash button triggers player figure ability with cooldown visual
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: quick
