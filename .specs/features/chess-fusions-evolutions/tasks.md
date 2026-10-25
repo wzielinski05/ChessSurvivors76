@@ -197,9 +197,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Translocation dash instantly moves player and fires diagonal laser crosses at origin and target
-- [ ] Cathedral Aura slows enemies by 20% and parrying crossing bullets adds +0.2s to Chess Clock
-- [ ] Gate check passes: `npm run build`
+- [x] Translocation dash instantly moves player and fires diagonal laser crosses at origin and target
+- [x] Cathedral Aura slows enemies by 20% and parrying crossing bullets adds +0.2s to Chess Clock
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

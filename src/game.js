@@ -1552,6 +1552,15 @@ export class Game {
       }
     }
 
+    // Odświeżanie limitu parowania Aury Katedry (max 5/s) (FUS-07)
+    if (p.classId === 'cardinal') {
+      p.cathedralParryTimer += dt;
+      if (p.cathedralParryTimer >= 1.0) {
+        p.cathedralParryTimer = 0;
+        p.cathedralParryCount = 0;
+      }
+    }
+
     // Obrót drona-pionka (Poświęcenie Pionka)
     this.droneAngle += dt * 3.8;
 
@@ -1809,6 +1818,29 @@ export class Game {
       p.invulnTimer = Math.max(p.invulnTimer, 0.72);
       AudioEngine.playDash();
       this.spawnFloatingText('SIEGE LEAP!', p.x, p.y - 28, '#ffaa44', 1.2);
+    } else if (p.classId === 'cardinal') {
+      // TRANSLOCATION DASH (FUS-06): Błyskawiczna teleportacja do 320px + podwójny X-Cross
+      const startX = p.x;
+      const startY = p.y;
+      const aimDx = this.input.mouseX - p.x;
+      const aimDy = this.input.mouseY - p.y;
+      const dist = Math.min(320, Math.hypot(aimDx, aimDy) || 180);
+      const ang = Math.atan2(aimDy, aimDx);
+      const targetX = clamp(p.x + Math.cos(ang) * dist, bounds.left + 22, bounds.right - 22);
+      const targetY = clamp(p.y + Math.sin(ang) * dist, bounds.top + 22, bounds.bottom - 22);
+
+      this._fireXCrossLasers(startX, startY, bounds);
+      p.x = targetX;
+      p.y = targetY;
+      p.dashTimer = 0.12;
+      p.dashCooldown = cls.dashCooldown;
+      p.invulnTimer = Math.max(p.invulnTimer, 0.45);
+      this._fireXCrossLasers(targetX, targetY, bounds);
+
+      AudioEngine.playBishopLaser();
+      this.addTrauma(0.38);
+      this.triggerHitstop(0.04);
+      this.spawnFloatingText('TRANSLOCATION!', targetX, targetY - 28, '#55ffdd', 1.2);
     } else {
       // PIONEK: EN PASSANT DASH
       p.dashVx = dx * 620;
@@ -1928,6 +1960,43 @@ export class Game {
         const b = bullets[i];
         if (b.active && b.isEnemy) {
           if (distToSegmentSq(b.x, b.y, ox, oy, exit.x, exit.y) <= 22 * 22) {
+            this.pools.bullets.release(b);
+          }
+        }
+      }
+    }
+  }
+
+  // Rozbłysk Krzyża Apostolskiego Kardynała po przekątnych (FUS-06)
+  _fireXCrossLasers(ox, oy, bounds) {
+    const dirs = [
+      [0.7071, 0.7071],
+      [-0.7071, 0.7071],
+      [0.7071, -0.7071],
+      [-0.7071, -0.7071]
+    ];
+    const enemies = this.pools.enemies.items;
+    const bullets = this.pools.bullets.items;
+    const range = 200;
+
+    for (let d = 0; d < 4; d++) {
+      const tx = clamp(ox + dirs[d][0] * range, bounds.left + 12, bounds.right - 12);
+      const ty = clamp(oy + dirs[d][1] * range, bounds.top + 12, bounds.bottom - 12);
+      this.spawnLaserBeam(ox, oy, tx, ty, false, 10, '#55ffdd', 0.28);
+
+      for (let i = 0; i < this.pools.enemies.size; i++) {
+        const e = enemies[i];
+        if (!e.active) continue;
+        const hitR = e.radius + 10;
+        if (distToSegmentSq(e.x, e.y, ox, oy, tx, ty) <= hitR * hitR) {
+          this.damageEnemy(e, 4.0, dirs[d][0] * 350, dirs[d][1] * 350, true, true);
+        }
+      }
+
+      for (let i = 0; i < this.pools.bullets.size; i++) {
+        const b = bullets[i];
+        if (b.active && b.isEnemy) {
+          if (distToSegmentSq(b.x, b.y, ox, oy, tx, ty) <= 24 * 24) {
             this.pools.bullets.release(b);
           }
         }
@@ -2254,20 +2323,24 @@ export class Game {
         e.pinnedTimer -= dt;
       }
 
-      e.animPhase += dt * 8 * panicMult;
+      // Aura Katedry Kardynała: spowolnienie o 20% w promieniu 130px (FUS-07)
+      const inAura = p.classId === 'cardinal' && distSq(p.x, p.y, e.x, e.y) <= 16900;
+      const enemySpeedMult = panicMult * (inAura ? 0.8 : 1.0);
+
+      e.animPhase += dt * 8 * enemySpeedMult;
 
       if (e.type === 'pawn') {
-        this._updateBlackPawn(e, dt, panicMult, bounds);
+        this._updateBlackPawn(e, dt, enemySpeedMult, bounds);
       } else if (e.type === 'knight') {
-        this._updateBlackKnight(e, dt, panicMult, bounds);
+        this._updateBlackKnight(e, dt, enemySpeedMult, bounds);
       } else if (e.type === 'bishop') {
-        this._updateBlackBishop(e, dt, panicMult, bounds);
+        this._updateBlackBishop(e, dt, enemySpeedMult, bounds);
       } else if (e.type === 'rook') {
-        this._updateBlackRook(e, dt, panicMult, bounds);
+        this._updateBlackRook(e, dt, enemySpeedMult, bounds);
       } else if (e.type === 'king') {
-        this._updateBlackKing(e, dt, panicMult, bounds);
+        this._updateBlackKing(e, dt, enemySpeedMult, bounds);
       } else if (e.type === 'black_queen') {
-        this._updateBlackQueen(e, dt, panicMult, bounds);
+        this._updateBlackQueen(e, dt, enemySpeedMult, bounds);
       }
 
       // Kolizja kontaktowa wroga z graczem (tylko gdy wróg i gracz są na ziemi)
@@ -2973,7 +3046,17 @@ export class Game {
         );
 
         if (hitPlayer) {
-          if (p.dashTimer > 0) {
+          if (p.classId === 'cardinal' && p.cathedralParryCount < 5) {
+            p.cathedralParryCount++;
+            this.pools.bullets.release(b);
+            AudioEngine.playParryBullet();
+            this.triggerHitstop(0.03);
+            this.addTrauma(0.16);
+            this.addClockIncrement(0.2, p.x, p.y - 12);
+            this.spawnFloatingText('AURA PARRY! (+0.2s)', p.x, p.y - 30, '#55ffdd', 1.05);
+            this.spawnParticles(b.x, b.y, 8, '#55ffdd', 40, 140);
+            continue;
+          } else if (p.dashTimer > 0) {
             this.pools.bullets.release(b);
             AudioEngine.playParryBullet();
             this.triggerHitstop(0.035);
@@ -3296,6 +3379,11 @@ export class Game {
     // Aktualizacja kombinacji Szach i Mat (TAC-07, TAC-08)
     if (!isShard) {
       this._updateCheckmateCombo(e, dmg);
+    }
+
+    // Aura Katedry Kardynała: 60% szansy na Związanie przy dowolnym trafieniu (FUS-07)
+    if (this.player.classId === 'cardinal' && !e.isPinned && Math.random() < 0.6) {
+      this._applyPin(e, 2.0);
     }
 
     const bounds = this.board.getBounds();
@@ -4176,6 +4264,27 @@ export class Game {
     }
 
     // 3. Rysowanie Gracza (zgodnie z aktualną klasą z Drzewka Ewolucji)
+    // Aura Katedry Kardynała (FUS-07)
+    if (p.classId === 'cardinal') {
+      ctx.save();
+      const auraR = 130;
+      drawFauxGlow(ctx, p.x, p.y, auraR, '#55ffdd', 0.12);
+      ctx.strokeStyle = '#55ffdd';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, auraR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 55, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     const blink = p.invulnTimer > 0 && Math.floor(this.time * 20) % 2 === 0;
     if (!blink) {
       const walkBob = Math.sin(p.walkPhase) * 0.05;
