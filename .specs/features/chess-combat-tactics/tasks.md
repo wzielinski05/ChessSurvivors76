@@ -162,9 +162,9 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Dual fork hits within 0.20s apply 1.2s stun and reward +1 Gambit Token
-- [ ] Fork hit interrupts charging boss telegraphs with 0.6s stun
-- [ ] Gate check passes: `npm run build`
+- [x] Dual fork hits within 0.20s apply 1.2s stun and reward +1 Gambit Token
+- [x] Fork hit interrupts charging boss telegraphs with 0.6s stun
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

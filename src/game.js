@@ -131,6 +131,10 @@ export class Game {
     this.castlingCloneX = 0;
     this.castlingCloneY = 0;
 
+    // Stan taktyczny Widełek (TAC-05)
+    this.lastForkHitEnemy = null;
+    this.lastForkHitTime = 0;
+
     // Tarcza z 4 orbitujących pionków dla Mini-Bossa: Czarnego Króla (Spec 4.5, prealokowana Zero-GC)
     this.kingShieldPawns = [
       { active: false, angle: 0, hp: 3, x: 0, y: 0, hitFlash: 0 },
@@ -255,6 +259,8 @@ export class Game {
     this.droneActive = false;
     this.activeAbilityId = null;
     this.activeAbilityCooldown = 0;
+    this.lastForkHitEnemy = null;
+    this.lastForkHitTime = 0;
     this._updateCastlingClonePos();
 
     for (let i = 0; i < 4; i++) {
@@ -2850,6 +2856,9 @@ export class Game {
             }
 
             this._checkPinning(e, b.vx, b.vy);
+            if (b.kind === 'fork_shard') {
+              this._handleForkImpact(e);
+            }
             this.damageEnemy(
               e,
               b.damage,
@@ -2974,6 +2983,16 @@ export class Game {
         const dy = target.y - sy || 1;
         const d = Math.sqrt(dSq) || 1;
         this.damageEnemy(target, aoeDamage, (dx / d) * 350, (dy / d) * 350, true, true);
+
+        // Przerwanie telegrafu u bossa przy trafieniu Pin Shatter (TAC-06)
+        const isBoss = target.type === 'king' || target.type === 'black_queen';
+        if (isBoss && target.state === 'telegraph') {
+          target.state = 'chase';
+          target.stateTimer = 2.5;
+          target.stunTimer = Math.max(target.stunTimer, 0.6);
+          this.spawnFloatingText('PRZERWANY TELEGRAF!', target.x, target.y - 36, '#ffdd44', 1.25);
+          AudioEngine.playShieldDeflect();
+        }
       }
     }
   }
@@ -3187,6 +3206,54 @@ export class Game {
   _spawnKnightForkShards(sourceEnemy, forkLvl) {
     if (!sourceEnemy) return;
     this._spawnKnightForkSparks(sourceEnemy.x, sourceEnemy.y, sourceEnemy, 2.0);
+  }
+
+  // Obsługa trafienia odłamkiem Widełek: Królewskie Widełki i przerywanie telegrafu (TAC-05, TAC-06)
+  _handleForkImpact(e) {
+    if (!e || !e.active) return;
+    const now = this.time;
+    e.forkHitTimestamp = now;
+
+    const isBoss = e.type === 'king' || e.type === 'black_queen';
+
+    // TAC-06: Przerwanie telegrafu u bossa przy trafieniu odłamkiem widełek
+    if (isBoss && e.state === 'telegraph') {
+      e.state = 'chase';
+      e.stateTimer = 2.5;
+      e.stunTimer = Math.max(e.stunTimer, 0.6);
+      this.spawnFloatingText('PRZERWANY TELEGRAF!', e.x, e.y - 36, '#ffdd44', 1.25);
+      AudioEngine.playShieldDeflect();
+      this.addTrauma(0.35);
+      this.triggerHitstop(0.04);
+    }
+
+    // TAC-05: Królewskie Widełki: dwa trafienia w różne cele w czasie <= 0.20s
+    if (
+      this.lastForkHitEnemy &&
+      this.lastForkHitEnemy !== e &&
+      this.lastForkHitEnemy.active &&
+      now - this.lastForkHitTime <= 0.2
+    ) {
+      const other = this.lastForkHitEnemy;
+      e.stunTimer = Math.max(e.stunTimer, 1.2);
+      other.stunTimer = Math.max(other.stunTimer, 1.2);
+
+      // Nagroda +1 Gambit Token (TAC-05)
+      this.spawnToken((e.x + other.x) * 0.5, (e.y + other.y) * 0.5, 1);
+      AudioEngine.playTokenPickup();
+
+      this.spawnFloatingText('KRÓLEWSKIE WIDEŁKI!', e.x, e.y - 28, '#ffdd55', 1.15);
+      this.spawnFloatingText('KRÓLEWSKIE WIDEŁKI!', other.x, other.y - 28, '#ffdd55', 1.15);
+
+      this.triggerHitstop(0.045);
+      this.addTrauma(0.3);
+
+      this.lastForkHitEnemy = null;
+      this.lastForkHitTime = 0;
+    } else {
+      this.lastForkHitEnemy = e;
+      this.lastForkHitTime = now;
+    }
   }
 
   damagePlayer(dmg, sourceX, sourceY) {
