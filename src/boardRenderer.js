@@ -114,30 +114,66 @@ export class BoardRenderer {
 
     ctx.clearRect(0, 0, this.virtualWidth, this.virtualHeight);
 
-    // 1. Tło stołu / przestrzeni wokół areny
+    // 1. Tło stołu / otwartej przestrzeni wokół areny (VIEW-03)
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, this.virtualWidth, this.virtualHeight);
 
-    // Subtelna siatka tła poza planszą
-    ctx.strokeStyle = theme.gridLines;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.25;
-    const bgStep = 34;
-    ctx.beginPath();
-    for (let x = 0; x < this.virtualWidth; x += bgStep) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, this.virtualHeight);
+    // Proceduralne tekstury środowiska otwartego stołu
+    if (theme.id === 'woodcraft') {
+      // Drewniane deski stołu ciągnące się na całą szerokość ekranu
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+      const plankH = 52;
+      for (let y = 0; y < this.virtualHeight; y += plankH) {
+        ctx.fillRect(0, y, this.virtualWidth, 2);
+      }
+      ctx.fillStyle = 'rgba(120, 72, 36, 0.05)';
+      for (let y = 0; y < this.virtualHeight; y += plankH * 2) {
+        ctx.fillRect(0, y + 6, this.virtualWidth, plankH - 12);
+      }
+    } else if (theme.id === 'cyber_grid') {
+      // Cybernetyczna siatka neonowa na całym ekranie
+      ctx.strokeStyle = theme.gridLines;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.22;
+      const bgStep = 36;
+      ctx.beginPath();
+      for (let x = 0; x < this.virtualWidth; x += bgStep) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, this.virtualHeight);
+      }
+      for (let y = 0; y < this.virtualHeight; y += bgStep) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(this.virtualWidth, y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else if (theme.id === 'one_bit') {
+      // 1-bitowy subtelny dithering otoczenia
+      ctx.fillStyle = theme.tileLight;
+      ctx.globalAlpha = 0.06;
+      for (let y = 0; y < this.virtualHeight; y += 16) {
+        for (let x = 0; x < this.virtualWidth; x += 16) {
+          if ((x + y) % 32 === 0) {
+            ctx.fillRect(x, y, 2, 2);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    } else if (theme.id === 'blackboard') {
+      // Ślady pyłu kredowego i diagonalne kreskowanie
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let d = -this.virtualHeight; d < this.virtualWidth; d += 48) {
+        ctx.moveTo(d, 0);
+        ctx.lineTo(d + this.virtualHeight, this.virtualHeight);
+      }
+      ctx.stroke();
     }
-    for (let y = 0; y < this.virtualHeight; y += bgStep) {
-      ctx.moveTo(0, y);
-      ctx.lineTo(this.virtualWidth, y);
-    }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
 
     // 2. Cień pod stołem szachowym
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-    ctx.fillRect(boardX - 24, boardY - 18, boardSize + 56, boardSize + 52);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.52)';
+    ctx.fillRect(boardX - 28, boardY - 22, boardSize + 56, boardSize + 52);
 
     // 3. Rama zewnętrzna stołu szachowego
     const framePad = 22;

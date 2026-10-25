@@ -128,9 +128,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Background textures cover entire canvas up to window boundaries
-- [ ] No black letterbox bars appear in 16:9, 21:9 or mobile portrait modes
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Background textures cover entire canvas up to window boundaries
+- [x] No black letterbox bars appear in 16:9, 21:9 or mobile portrait modes
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: unit
 **Gate**: quick
