@@ -521,7 +521,36 @@ export class Game {
     b.causesPin = false;
     b.travelDist = 0;
     b.stepDir = 1;
+    b.bypassArmor = false;
+    b.isChaosHorseshoe = false;
     return b;
+  }
+
+  _findNearestEnemy(ox, oy, maxDist = 450, eliteOnly = false) {
+    const enemies = this.pools.enemies.items;
+    const size = this.pools.enemies.size;
+    let closest = null;
+    let closestDistSq = maxDist * maxDist;
+
+    for (let i = 0; i < size; i++) {
+      const e = enemies[i];
+      if (!e.active) continue;
+      if (eliteOnly) {
+        const isEliteOrBoss =
+          e.type === 'king' ||
+          e.type === 'black_queen' ||
+          e.type === 'rook' ||
+          e.type === 'bishop' ||
+          e.type === 'knight';
+        if (!isEliteOrBoss) continue;
+      }
+      const d2 = distSq(ox, oy, e.x, e.y);
+      if (d2 < closestDistSq) {
+        closestDistSq = d2;
+        closest = e;
+      }
+    }
+    return closest;
   }
 
   spawnEnemy(forcedType = null) {
@@ -2226,6 +2255,61 @@ export class Game {
         isCrit,
         kbMult * 1.3
       );
+    } else if (p.classId === 'amazon') {
+      // AMAZONKA: Wszechobecna Salwa Królewska (FUS-08)
+      // 8 kierunków jednocześnie, co 2. salwa zamienia przekątne w Podkowy Chaosu (armor bypass, 3x knockback, widełki)
+      p.amazonVolleyCount = (p.amazonVolleyCount || 0) + 1;
+      const isChaosVolley = p.amazonVolleyCount % 2 === 0;
+      const spd = 680;
+      const dmg = 3.6 * dmgMult * critMult;
+
+      for (let d = 0; d < 8; d++) {
+        const a = angle + (d * Math.PI) / 4;
+        const isDiagonal = d % 2 === 1;
+        const spawnX = p.x + Math.cos(a) * 14;
+        const spawnY = p.y - 6 + Math.sin(a) * 14;
+
+        if (isChaosVolley && isDiagonal) {
+          // Podkowa Chaosu: armor bypass, 3x knockback, samonaprowadzanie, widełki
+          const b = this.spawnBullet(
+            spawnX,
+            spawnY,
+            Math.cos(a) * (spd * 0.95),
+            Math.sin(a) * (spd * 0.95),
+            false,
+            7.0,
+            dmg * 1.25,
+            1.8,
+            'horseshoe',
+            0,
+            0,
+            true,
+            kbMult * 3.0
+          );
+          if (b) {
+            b.bypassArmor = true;
+            b.isChaosHorseshoe = true;
+            b.targetEnemy = this._findNearestEnemy(spawnX, spawnY, 450);
+          }
+        } else {
+          // Pocisk królewski
+          this.spawnBullet(
+            spawnX,
+            spawnY,
+            Math.cos(a) * spd,
+            Math.sin(a) * spd,
+            false,
+            6.2,
+            dmg,
+            1.6,
+            'laser_bolt',
+            1,
+            0,
+            isCrit && d === 0,
+            kbMult * 1.5
+          );
+        }
+      }
     } else {
       // PIONEK: Pojedynczy precyzyjny strzał wiórem drewna
       const spd = 590;
@@ -2947,18 +3031,23 @@ export class Game {
 
       const stepDt = b.isEnemy ? worldDt : dt;
 
-      // Samonaprowadzanie odłamków widełek na cel (TAC-04)
-      if (!b.isEnemy && b.kind === 'fork_shard' && b.targetEnemy && b.targetEnemy.active) {
-        const tDx = b.targetEnemy.x - b.x;
-        const tDy = b.targetEnemy.y - b.y;
-        const tDist = Math.hypot(tDx, tDy) || 1;
-        const spd = 480;
-        const desiredVx = (tDx / tDist) * spd;
-        const desiredVy = (tDy / tDist) * spd;
-        const steer = Math.min(1.0, 12.0 * stepDt);
-        b.vx += (desiredVx - b.vx) * steer;
-        b.vy += (desiredVy - b.vy) * steer;
-        b.rotation = Math.atan2(b.vy, b.vx);
+      // Samonaprowadzanie odłamków widełek i Podków Chaosu na cel (TAC-04, FUS-08)
+      if (!b.isEnemy && (b.kind === 'fork_shard' || b.isChaosHorseshoe)) {
+        if (b.isChaosHorseshoe && (!b.targetEnemy || !b.targetEnemy.active)) {
+          b.targetEnemy = this._findNearestEnemy(b.x, b.y, 450);
+        }
+        if (b.targetEnemy && b.targetEnemy.active) {
+          const tDx = b.targetEnemy.x - b.x;
+          const tDy = b.targetEnemy.y - b.y;
+          const tDist = Math.hypot(tDx, tDy) || 1;
+          const spd = b.isChaosHorseshoe ? 650 : 480;
+          const desiredVx = (tDx / tDist) * spd;
+          const desiredVy = (tDy / tDist) * spd;
+          const steer = Math.min(1.0, (b.isChaosHorseshoe ? 8.0 : 12.0) * stepDt);
+          b.vx += (desiredVx - b.vx) * steer;
+          b.vy += (desiredVy - b.vy) * steer;
+          b.rotation = Math.atan2(b.vy, b.vx);
+        }
       }
 
       // Schodkowy zygzakowaty promień Kardynała (FUS-05)
@@ -3157,7 +3246,13 @@ export class Game {
               e.radius
             )
           ) {
-            if (e.type === 'rook' && e.state !== 'stunned' && e.frozenTimer <= 0 && e.mateStep !== 2) {
+            if (
+              e.type === 'rook' &&
+              e.state !== 'stunned' &&
+              e.frozenTimer <= 0 &&
+              e.mateStep !== 2 &&
+              !b.bypassArmor
+            ) {
               const hitFromAngle = Math.atan2(b.prevY - e.y, b.prevX - e.x);
               if (Math.abs(angleDiff(hitFromAngle, e.facingAngle)) < 1.2) {
                 this.pools.bullets.release(b);
@@ -3175,6 +3270,9 @@ export class Game {
             if (b.kind === 'fork_shard') {
               this._handleForkImpact(e);
             }
+            if (b.isChaosHorseshoe) {
+              this._spawnKnightForkSparks(e.x, e.y, e, 2.5);
+            }
             this.damageEnemy(
               e,
               b.damage,
@@ -3182,7 +3280,8 @@ export class Game {
               b.vy,
               b.isCrit,
               b.kind === 'fork_shard',
-              b.knockbackMult
+              b.knockbackMult,
+              b.bypassArmor
             );
 
             if (b.pierceLeft > 0) {
@@ -3361,14 +3460,17 @@ export class Game {
     bulletVy,
     isCrit = false,
     isShard = false,
-    knockbackMult = 1
+    knockbackMult = 1,
+    bypassArmor = false
   ) {
     if (!e || !e.active) return;
     const isBoss = e.type === 'king' || e.type === 'black_queen';
     const stunBonus = e.type === 'rook' && e.state === 'stunned' ? 1.5 : 1.0;
-    // Czarny Król otrzymuje zredukowane obrażenia, dopóki żyją jego pionki-tarcze (chyba że ominięte przez Mark II, TAC-08)
+    // Czarny Król otrzymuje zredukowane obrażenia, dopóki żyją jego pionki-tarcze (chyba że ominięte przez Mark II lub Chaos Horseshoe, TAC-08, FUS-08)
     const kingShieldResist =
-      e.type === 'king' && this.kingShieldCount > 0 && e.mateStep !== 2 ? 0.5 : 1.0;
+      e.type === 'king' && this.kingShieldCount > 0 && e.mateStep !== 2 && !bypassArmor
+        ? 0.5
+        : 1.0;
     const vulnMult = e.isPinned ? (e.pinVulnerability || 1.35) : 1.0;
     const finalDmg = dmg * stunBonus * kingShieldResist * vulnMult;
     e.hp -= finalDmg;
@@ -4380,15 +4482,22 @@ export class Game {
       }
 
       if (b.kind === 'horseshoe') {
-        // Obracająca się podkowa Skoczka
+        // Obracająca się podkowa Skoczka / Podkowa Chaosu Amazonki (FUS-08)
         ctx.save();
         ctx.translate(b.x, b.y);
         ctx.rotate(b.life * 18);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = b.isChaosHorseshoe ? '#ff44aa' : color;
+        ctx.lineWidth = b.isChaosHorseshoe ? 4 : 3;
         ctx.beginPath();
         ctx.arc(0, 0, b.radius, -Math.PI * 0.75, Math.PI * 0.75);
         ctx.stroke();
+        if (b.isChaosHorseshoe) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.arc(0, 0, b.radius * 0.6, -Math.PI * 0.75, Math.PI * 0.75);
+          ctx.stroke();
+        }
         ctx.restore();
       } else if (b.kind === 'laser_bolt') {
         // Wydłużony impuls laserowy Gońca / Hetmana

@@ -221,9 +221,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Amazon fires in all 8 cardinal and diagonal directions simultaneously
-- [ ] Alternating volleys launch Chaos Horseshoes with armor bypass, 3x knockback, and fork sparks
-- [ ] Gate check passes: `npm run build`
+- [x] Amazon fires in all 8 cardinal and diagonal directions simultaneously
+- [x] Alternating volleys launch Chaos Horseshoes with armor bypass, 3x knockback, and fork sparks
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
