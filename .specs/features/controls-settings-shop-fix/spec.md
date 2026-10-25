@@ -112,19 +112,20 @@ Each requirement gets a unique ID for tracking across design, tasks, and validat
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| SHOP-01 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Design | Pending |
-| SHOP-02 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Design | Pending |
-| SHOP-03 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Design | Pending |
-| SHOP-04 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Design | Pending |
-| SHOP-05 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Design | Pending |
-| AIM-01 | P2: Klasyczne Celowanie Myszką | Design | Pending |
-| AIM-02 | P2: Klasyczne Celowanie Myszką | Design | Pending |
-| AIM-03 | P2: Klasyczne Celowanie Myszką | Design | Pending |
-| AIM-04 | P2: Klasyczne Celowanie Myszką | Design | Pending |
-| AIM-05 | P2: Klasyczne Celowanie Myszką | Design | Pending |
-| SETT-01 | P3: Dedykowane Menu Ustawień | Design | Pending |
-| SETT-02 | P3: Dedykowane Menu Ustawień | Design | Pending |
-| SETT-03 | P3: Dedykowane Menu Ustawień | Design | Pending |
-| SETT-04 | P3: Dedykowane Menu Ustawień | Design | Pending |
+| SHOP-01 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Verification | ✅ Verified |
+| SHOP-02 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Verification | ✅ Verified |
+| SHOP-03 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Verification | ✅ Verified |
+| SHOP-04 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Verification | ✅ Verified |
+| SHOP-05 | P1: Odblokowanie Sklepu i Izolacja Wskaźników | Verification | ✅ Verified |
+| AIM-01 | P2: Klasyczne Celowanie Myszką | Verification | ✅ Verified |
+| AIM-02 | P2: Klasyczne Celowanie Myszką | Verification | ✅ Verified |
+| AIM-03 | P2: Klasyczne Celowanie Myszką | Verification | ✅ Verified |
+| AIM-04 | P2: Klasyczne Celowanie Myszką | Verification | ✅ Verified |
+| AIM-05 | P2: Klasyczne Celowanie Myszką | Verification | ✅ Verified |
+| SETT-01 | P3: Dedykowane Menu Ustawień | Verification | ✅ Verified |
+| SETT-02 | P3: Dedykowane Menu Ustawień | Verification | ✅ Verified |
+| SETT-03 | P3: Dedykowane Menu Ustawień | Verification | ✅ Verified |
+| SETT-04 | P3: Dedykowane Menu Ustawień | Verification | ✅ Verified |
 
 **Coverage:** 14 total, 14 mapped to design, 0 unmapped
+

@@ -45,10 +45,17 @@
 ## Handoff
 
 - **Feature**: controls-settings-shop-fix / .specs/features/controls-settings-shop-fix/tasks.md
-- **Phase / Task**: Specify / Tworzenie specyfikacji wymagań spec.md
-- **Completed**: Diagnoza przyczyn problemów ze sklepem, myszką i przyciskami
-- **In-progress** (file:line): `.specs/features/controls-settings-shop-fix/spec.md`
-- **Next step**: Utworzenie i walidacja spec.md, design.md i tasks.md
+- **Phase / Task**: Verified / Weryfikacja niezależnego sub-agenta (author != verifier) - PASS ✅
+- **Completed**:
+  - T1: Izolacja wskaźników dotyku od myszki i odblokowanie kliknięć w lewej połowie modali
+  - T2: Responsywny układ kart Sklepu Gambitu i jednolita detekcja kliknięć
+  - T3: Klasyczne celowanie myszką na PC z celownikiem taktycznym i czyste Auto-Aim
+  - T4: Inteligentna widoczność nakładki dotykowej (auto-ukrywanie przy myszy, auto-pokazywanie przy dotyku)
+  - T5: Dedykowane modalne Menu Ustawień (`SETTINGS`) z persystencją w StorageEngine (IndexedDB/localStorage)
+  - T6: Interaktywne, w pełni klikalne przyciski paska HUD na komputerach i telefonach
+  - Weryfikacja niezależnego Verifiera (14/14 ACs ✅ PASS, sensor 3/3 zabitych mutantów, build 243 KB)
+- **In-progress** (file:line): none
+- **Next step**: Gotowe do testów użytkownika (UAT) lub wdrożenia
 - **Blockers**: none
 - **Uncommitted files**: none
 - **Branch**: main

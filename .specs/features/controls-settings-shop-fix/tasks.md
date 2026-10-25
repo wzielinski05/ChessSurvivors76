@@ -206,9 +206,9 @@ Phase 3:  T5 ------> T6
 
 | Task | Scope | Status |
 | --- | --- | --- |
-| T1 | Input filter and modal unblocking | Planned |
-| T2 | Responsive shop grid and purchase flow | Planned |
-| T3 | Classic mouse aim and crosshair toggle | Planned |
-| T4 | Smart touch overlay visibility | Planned |
-| T5 | Settings menu overlay and preferences | Planned |
-| T6 | Interactive clickable HUD buttons | Planned |
+| T1 | Input filter and modal unblocking | Done |
+| T2 | Responsive shop grid and purchase flow | Done |
+| T3 | Classic mouse aim and crosshair toggle | Done |
+| T4 | Smart touch overlay visibility | Done |
+| T5 | Settings menu overlay and preferences | Done |
+| T6 | Interactive clickable HUD buttons | Done |

@@ -92,3 +92,4 @@ interface SettingsState {
 - **Błędne wykrywanie ekranu dotykowego na laptopie**: Ruch myszką natychmiast przywraca `touchActive = false` i tryb klasyczny celownika.
 - **Kliknięcie poza oknem modalnym**: Kliknięcie w przyciemnione tło wokół modalu lub w `[X]` bezpiecznie zamyka modal i wznawia rozgrywkę.
 - **Brak wycieków pamięci (Zero-GC)**: Nowe menu opcji wykorzystuje istniejące prymitywy rysowania Canvas 2D bez dynamicznych alokacji w pętli renderującej.
+
