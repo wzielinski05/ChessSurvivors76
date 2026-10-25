@@ -267,10 +267,10 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Empress renders fortress battlement with equine crest and frontal shield arc
-- [ ] Cardinal renders elongated bishop mitre with golden horseshoe clasp
-- [ ] Amazon renders royal crown flanked by winged pegasus crest
-- [ ] Gate check passes: `npm run build`
+- [x] Empress renders fortress battlement with equine crest and frontal shield arc
+- [x] Cardinal renders elongated bishop mitre with golden horseshoe clasp
+- [x] Amazon renders royal crown flanked by winged pegasus crest
+- [x] Gate check passes: `npm run build`
 
 **Tests**: visual
 **Gate**: quick

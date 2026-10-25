@@ -532,6 +532,327 @@ export function drawGrandmasterHand(ctx, xOrHand, yOrTheme, zHeight = 0, themeAr
   ctx.restore();
 }
 
+// Rysowanie Cesarki (Empress / Chancellor — Fuzja Wieży i Skoczka) (FUS-11)
+export function drawEmpressPiece(
+  ctx,
+  x,
+  y,
+  scaleX,
+  scaleY,
+  fill,
+  outline,
+  hitFlash,
+  glowColor = null,
+  facingAngle = 0,
+  shieldCharges = 0
+) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 1. Cień na szachownicy
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.beginPath();
+  ctx.ellipse(0, 12, 16 * scaleX, 6.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (glowColor) {
+    drawFauxGlow(ctx, 0, -4, 20, glowColor, 0.24);
+  }
+
+  ctx.save();
+  ctx.scale(scaleX, scaleY);
+
+  const mainFill = hitFlash > 0 ? '#ffffff' : fill;
+  const mainStroke = hitFlash > 0 ? '#ffffff' : outline;
+
+  ctx.fillStyle = mainFill;
+  ctx.strokeStyle = mainStroke;
+  ctx.lineWidth = 2.6;
+  ctx.lineJoin = 'round';
+
+  // 2. Masywna podstawa bastionu
+  ctx.beginPath();
+  ctx.ellipse(0, 9.5, 14, 5.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Korpus: Baszta twierdzy z blankami po bokach i końskim czubem w centrum
+  ctx.beginPath();
+  ctx.moveTo(-11.5, 8.5);
+  ctx.lineTo(-9.5, -7);
+  // Lewa blanka
+  ctx.lineTo(-12, -9);
+  ctx.lineTo(-12, -18);
+  ctx.lineTo(-7.5, -18);
+  ctx.lineTo(-7.5, -13);
+  // Koński kark i grzywa wznoszące się ku górze
+  ctx.lineTo(-4, -13);
+  ctx.quadraticCurveTo(-6, -20, -1, -25);
+  ctx.lineTo(2, -28); // Ucho konia
+  ctx.lineTo(4, -23);
+  ctx.lineTo(9, -18); // Pysk konia
+  ctx.lineTo(7, -13);
+  // Prawa blanka
+  ctx.lineTo(7.5, -13);
+  ctx.lineTo(7.5, -18);
+  ctx.lineTo(12, -18);
+  ctx.lineTo(12, -9);
+  ctx.lineTo(9.5, -7);
+  ctx.lineTo(11.5, 8.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Żłobienie kamienne twierdzy
+  ctx.beginPath();
+  ctx.moveTo(-9, -6.5);
+  ctx.lineTo(9, -6.5);
+  ctx.stroke();
+
+  // Świecące oko końskiego czuba
+  ctx.fillStyle = hitFlash > 0 ? '#000000' : outline;
+  ctx.beginPath();
+  ctx.arc(2, -18, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // 4. Frontalny Bastion Obronny (Bulwark Shield Arc - FUS-04)
+  if (shieldCharges > 0) {
+    ctx.save();
+    ctx.translate(0, -2);
+    ctx.strokeStyle = glowColor || '#ffaa44';
+    ctx.lineWidth = 3.8;
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, facingAngle - Math.PI * 0.5, facingAngle + Math.PI * 0.5);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.6;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, facingAngle - Math.PI * 0.35, facingAngle + Math.PI * 0.35);
+    ctx.stroke();
+
+    // Wskaźniki ładunków tarczy
+    for (let c = 0; c < shieldCharges; c++) {
+      const pipAng = facingAngle - Math.PI * 0.4 + (c / 3) * (Math.PI * 0.8);
+      ctx.fillStyle = '#ffaa44';
+      ctx.beginPath();
+      ctx.arc(Math.cos(pipAng) * 28, Math.sin(pipAng) * 28, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// Rysowanie Kardynała (Cardinal / Archbishop — Fuzja Gońca i Skoczka) (FUS-11)
+export function drawCardinalPiece(
+  ctx,
+  x,
+  y,
+  scaleX,
+  scaleY,
+  fill,
+  outline,
+  hitFlash,
+  glowColor = null
+) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 1. Cień
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.beginPath();
+  ctx.ellipse(0, 11, 14 * scaleX, 5.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (glowColor) {
+    drawFauxGlow(ctx, 0, -5, 18, glowColor, 0.22);
+  }
+
+  ctx.scale(scaleX, scaleY);
+
+  const mainFill = hitFlash > 0 ? '#ffffff' : fill;
+  const mainStroke = hitFlash > 0 ? '#ffffff' : outline;
+
+  ctx.fillStyle = mainFill;
+  ctx.strokeStyle = mainStroke;
+  ctx.lineWidth = 2.4;
+  ctx.lineJoin = 'round';
+
+  // 2. Podstawa
+  ctx.beginPath();
+  ctx.ellipse(0, 9, 12.5, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Korpus kardynalski (smukła szata + wydłużona infuła/mitra)
+  ctx.beginPath();
+  ctx.moveTo(-9.5, 8);
+  ctx.quadraticCurveTo(-6, -1, -5.5, -9);
+  // Mitra biskupia z łukiem i czubem
+  ctx.quadraticCurveTo(-9, -20, 0, -29);
+  ctx.quadraticCurveTo(9, -20, 5.5, -9);
+  ctx.quadraticCurveTo(6, -1, 9.5, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Rozcięcie mitry (liturgiczne nacięcie z boku)
+  ctx.beginPath();
+  ctx.moveTo(-2, -26);
+  ctx.lineTo(4, -18);
+  ctx.stroke();
+
+  // 4. Złota klamra w kształcie podkowy (Skoczek) na piersi Kardynała
+  ctx.save();
+  ctx.strokeStyle = '#ffdd44';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.arc(0, -6, 5, -Math.PI * 0.75, Math.PI * 0.75);
+  ctx.stroke();
+  ctx.fillStyle = '#ffdd44';
+  ctx.beginPath();
+  ctx.arc(0, -6, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 5. Złoty Krzyż / Finial na szczycie mitry
+  ctx.strokeStyle = '#ffdd44';
+  ctx.lineWidth = 2.0;
+  ctx.beginPath();
+  ctx.moveTo(0, -34);
+  ctx.lineTo(0, -29);
+  ctx.moveTo(-3, -32);
+  ctx.lineTo(3, -32);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Rysowanie Amazonki (Amazon / Queen-Knight — Fuzja Hetmana i Skoczka) (FUS-11)
+export function drawAmazonPiece(
+  ctx,
+  x,
+  y,
+  scaleX,
+  scaleY,
+  fill,
+  outline,
+  hitFlash,
+  glowColor = null
+) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 1. Cień majestatyczny
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.46)';
+  ctx.beginPath();
+  ctx.ellipse(0, 12, 16 * scaleX, 6.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Faux-glow wielowarstwowy królewskiego fioletu / różu
+  drawFauxGlow(ctx, 0, -6, 24, glowColor || '#ff44aa', 0.28);
+
+  ctx.scale(scaleX, scaleY);
+
+  const mainFill = hitFlash > 0 ? '#ffffff' : fill;
+  const mainStroke = hitFlash > 0 ? '#ffffff' : outline;
+
+  ctx.fillStyle = mainFill;
+  ctx.strokeStyle = mainStroke;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+
+  // 2. Królewska podstawa
+  ctx.beginPath();
+  ctx.ellipse(0, 9.5, 14.5, 5.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Korpus sukni z klepsydrową talią
+  ctx.beginPath();
+  ctx.moveTo(-11, 8.5);
+  ctx.quadraticCurveTo(-5, 0, -4.5, -7);
+  ctx.lineTo(4.5, -7);
+  ctx.quadraticCurveTo(5, 0, 11, 8.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Pas talii z klejnotem chaosu
+  ctx.fillStyle = '#ff44aa';
+  ctx.beginPath();
+  ctx.arc(0, -7, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4. Skrzydła Pegaza (Knight Wings) po bokach
+  ctx.fillStyle = mainFill;
+  ctx.strokeStyle = mainStroke;
+  ctx.lineWidth = 2.0;
+
+  // Lewe skrzydło
+  ctx.beginPath();
+  ctx.moveTo(-6, -7);
+  ctx.quadraticCurveTo(-15, -11, -19, -21);
+  ctx.lineTo(-14, -18);
+  ctx.lineTo(-16, -26);
+  ctx.lineTo(-11, -21);
+  ctx.lineTo(-12, -28);
+  ctx.lineTo(-7, -20);
+  ctx.lineTo(-4.5, -11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Prawe skrzydło
+  ctx.beginPath();
+  ctx.moveTo(6, -7);
+  ctx.quadraticCurveTo(15, -11, 19, -21);
+  ctx.lineTo(14, -18);
+  ctx.lineTo(16, -26);
+  ctx.lineTo(11, -21);
+  ctx.lineTo(12, -28);
+  ctx.lineTo(7, -20);
+  ctx.lineTo(4.5, -11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // 5. Królewska korona z 5 iglicami w centrum
+  ctx.fillStyle = mainFill;
+  ctx.strokeStyle = mainStroke;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(-7.5, -11);
+  ctx.lineTo(-9, -21);
+  ctx.lineTo(-5, -16);
+  ctx.lineTo(-2.5, -24);
+  ctx.lineTo(0, -17);
+  ctx.lineTo(2.5, -24);
+  ctx.lineTo(5, -16);
+  ctx.lineTo(9, -21);
+  ctx.lineTo(7.5, -11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Klejnoty na czubkach korony
+  ctx.fillStyle = '#ffdd44';
+  ctx.beginPath();
+  ctx.arc(-9, -22, 1.6, 0, Math.PI * 2);
+  ctx.arc(-2.5, -25.5, 1.8, 0, Math.PI * 2);
+  ctx.arc(0, -18.5, 1.8, 0, Math.PI * 2);
+  ctx.arc(2.5, -25.5, 1.8, 0, Math.PI * 2);
+  ctx.arc(9, -22, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
 // Uniwersalny dispatcher rysowania dowolnej figury szachowej (Gracza, Wroga, Poświaty, Ikon UI)
 export function drawChessPiece(
   ctx,
@@ -562,6 +883,14 @@ export function drawChessPiece(
     drawQueenPiece(ctx, x, y - zHeight, scaleX * sc, scaleY * sc, fill, outline, hitFlash, glowColor);
   } else if (type === 'king') {
     drawKingPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
+  } else if (type === 'empress') {
+    const facing = extra ? extra.facingAngle || 0 : 0;
+    const shield = extra ? extra.shieldCharges || 0 : 0;
+    drawEmpressPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor, facing, shield);
+  } else if (type === 'cardinal') {
+    drawCardinalPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
+  } else if (type === 'amazon') {
+    drawAmazonPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
   } else {
     drawPawnPiece(ctx, x, y - zHeight, scaleX, scaleY, fill, outline, hitFlash, glowColor);
   }
