@@ -2000,24 +2000,26 @@ export class Game {
     }
   }
 
-  // 5. Mini-Boss: Czarny Król (Spec 4.5: tarcza z 4 orbitujących pionków + 32 pociski po okręgu co 5s + posiłki)
+  // 5. Mini-Boss: Czarny Król (Spec 4.5 & BAL-04: tarcza z 4 orbitujących pionków + sekwencyjna salwa z telegrafem)
   _updateBlackKing(e, dt, panicMult, bounds) {
     const p = this.player;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const moveScale = e.pinnedTimer > 0 ? 0 : 1;
+    const moveScale = e.pinnedTimer > 0 || e.state === 'telegraph' ? 0 : 1;
 
-    e.x = clamp(
-      e.x + (dx / dist) * e.speed * panicMult * moveScale * dt,
-      bounds.left + 32,
-      bounds.right - 32
-    );
-    e.y = clamp(
-      e.y + (dy / dist) * e.speed * panicMult * moveScale * dt,
-      bounds.top + 32,
-      bounds.bottom - 32
-    );
+    if (e.state !== 'telegraph') {
+      e.x = clamp(
+        e.x + (dx / dist) * e.speed * panicMult * moveScale * dt,
+        bounds.left + 32,
+        bounds.right - 32
+      );
+      e.y = clamp(
+        e.y + (dy / dist) * e.speed * panicMult * moveScale * dt,
+        bounds.top + 32,
+        bounds.bottom - 32
+      );
+    }
 
     // Aktualizacja 4 orbitujących pionków-tarcz
     let activeShields = 0;
@@ -2036,31 +2038,62 @@ export class Game {
     }
     this.kingShieldCount = activeShields;
 
-    e.stateTimer -= dt * panicMult;
-    if (e.stateTimer <= 0) {
-      e.stateTimer = 5.0; // Spec 4.5: co 5 sekund radialny bullet-hell (32 pociski) i posiłki!
-      e.scaleX = 1.35;
-      e.scaleY = 0.72;
-      AudioEngine.playKnightSlam();
-      this.addTrauma(0.55);
-      this.spawnFloatingText('KRÓLEWSKA SALWA (32 POCISKI)!', e.x, e.y - 34, this.theme.uiDanger, 1.15);
-
-      const bulletCount = 32;
-      const spd = (this.timeTrouble ? 255 : 195) * this.tempo.bulletSpeedMult;
-      for (let b = 0; b < bulletCount; b++) {
-        const ang = (b / bulletCount) * Math.PI * 2;
-        this.spawnBullet(e.x, e.y, Math.cos(ang) * spd, Math.sin(ang) * spd, true, 5.5, 1, 3.8);
+    if (e.state === 'chase') {
+      e.stateTimer -= dt * panicMult;
+      if (e.stateTimer <= 0) {
+        // Wejście w fazę czytelnego telegrafu (BAL-04)
+        e.state = 'telegraph';
+        e.stateTimer = this.tempo.telegraphBase * 1.25;
+        AudioEngine.playTelegraphWarn();
       }
+    } else if (e.state === 'telegraph') {
+      e.stateTimer -= dt;
+      e.scaleX = 1.05 + Math.sin(this.time * 24) * 0.12;
+      e.scaleY = 0.95 - Math.sin(this.time * 24) * 0.12;
+      if (e.stateTimer <= 0) {
+        // Faza 1 sekwencyjnej salwy: fala 1 (16 pocisków)
+        e.state = 'salvo_wave_2';
+        e.stateTimer = 0.24;
+        e.scaleX = 1.35;
+        e.scaleY = 0.72;
+        AudioEngine.playKnightSlam();
+        this.addTrauma(0.5);
+        this.spawnFloatingText('KRÓLEWSKA SALWA: FALA 1!', e.x, e.y - 34, this.theme.uiDanger, 1.1);
 
-      // Przyzwanie posiłków
-      if (this.pools.enemies.activeCount < 18) {
-        this.spawnEnemy('pawn');
-        this.spawnEnemy('knight');
+        const count = 16;
+        const spd = (this.timeTrouble ? 240 : 190) * this.tempo.bulletSpeedMult;
+        for (let b = 0; b < count; b++) {
+          const ang = (b / count) * Math.PI * 2;
+          this.spawnBullet(e.x, e.y, Math.cos(ang) * spd, Math.sin(ang) * spd, true, 5.5, 1, 3.8);
+        }
+      }
+    } else if (e.state === 'salvo_wave_2') {
+      e.stateTimer -= dt;
+      if (e.stateTimer <= 0) {
+        // Faza 2 sekwencyjnej salwy: fala 2 z przesunięciem kątowym (BAL-04)
+        e.state = 'chase';
+        e.stateTimer = 5.0;
+        AudioEngine.playPawnShoot();
+        this.spawnFloatingText('FALA 2!', e.x, e.y - 34, this.theme.uiDanger, 0.95);
+
+        const count = 16;
+        const offset = Math.PI / count;
+        const spd = (this.timeTrouble ? 260 : 210) * this.tempo.bulletSpeedMult;
+        for (let b = 0; b < count; b++) {
+          const ang = (b / count) * Math.PI * 2 + offset;
+          this.spawnBullet(e.x, e.y, Math.cos(ang) * spd, Math.sin(ang) * spd, true, 5.5, 1, 3.8);
+        }
+
+        // Przyzwanie posiłków
+        if (this.pools.enemies.activeCount < 18) {
+          this.spawnEnemy('pawn');
+          this.spawnEnemy('knight');
+        }
       }
     }
   }
 
-  // 6. Boss Finałowy: Czarna Królowa & Ręka Arcymistrza (Spec 4.6)
+  // 6. Boss Finałowy: Czarna Królowa & Ręka Arcymistrza (Spec 4.6 & BAL-04)
   _updateBlackQueen(e, dt, panicMult, bounds) {
     const p = this.player;
     const hpRatio = e.hp / e.maxHp;
@@ -2096,19 +2129,17 @@ export class Game {
       e.scaleX = 0.8;
       e.scaleY = 1.25;
       if (e.stateTimer <= 0) {
-        // Teleportacja na kafelek docelowy + kombinacja laserów Gońca i salwy Wieży!
+        // Teleportacja na kafelek docelowy
         this.spawnParticles(e.x, e.y, 16, this.theme.enemyOutline, 50, 180);
         e.x = e.targetX;
         e.y = e.targetY;
-        e.state = 'chase';
-        e.stateTimer = 1.85;
         e.scaleX = 1.35;
         e.scaleY = 0.72;
 
         AudioEngine.playBishopLaser();
         this.addTrauma(0.5);
 
-        // 1) Lasery diagonalne Gońca z nowej pozycji Królowej
+        // KROK 1 SEKWENCJI: Lasery diagonalne Gońca z nowej pozycji Królowej (BAL-04)
         const diagDirs = [
           [0.7071, 0.7071],
           [-0.7071, 0.7071],
@@ -2117,7 +2148,7 @@ export class Game {
         ];
         for (let d = 0; d < 4; d++) {
           const exit = rayBoxExitPoint(e.x, e.y, diagDirs[d][0], diagDirs[d][1], bounds);
-          this.spawnLaserBeam(e.x, e.y, exit.x, exit.y, true, 10, this.theme.bulletEnemy, 0.3);
+          this.spawnLaserBeam(e.x, e.y, exit.x, exit.y, true, 10, this.theme.bulletEnemy, 0.32);
           if (p.zHeight < 20) {
             const hitR = p.radius + 6;
             if (distToSegmentSq(p.x, p.y, e.x, e.y, exit.x, exit.y) <= hitR * hitR) {
@@ -2126,15 +2157,26 @@ export class Game {
           }
         }
 
-        // 2) Salwa kardynalna + pośrednia (12 pocisków)
+        // Przejście do sekwencyjnego wystrzału kul po krótkiej przerwie (BAL-04)
+        e.state = 'queen_secondary_burst';
+        e.stateTimer = 0.36;
+      }
+    } else if (e.state === 'queen_secondary_burst') {
+      e.stateTimer -= dt;
+      if (e.stateTimer <= 0) {
+        // KROK 2 SEKWENCJI: Salwa radialna Wieży (12 pocisków)
+        e.state = 'chase';
+        e.stateTimer = 1.95;
+
         const count = 12 * this.tempo.bulletHellDensity;
-        const spd = 230 * this.tempo.bulletSpeedMult;
+        const spd = 225 * this.tempo.bulletSpeedMult;
         for (let b = 0; b < count; b++) {
           const ang = (b / count) * Math.PI * 2;
           this.spawnBullet(e.x, e.y, Math.cos(ang) * spd, Math.sin(ang) * spd, true, 5.5, 1, 3.2);
         }
       }
     }
+  }
   }
 
   _summonGrandmasterHand(targetGridSize) {
@@ -2178,6 +2220,10 @@ export class Game {
         this.triggerHitstop(0.07);
         this.spawnShockwaveRing(h.x, h.y, newBounds.size * 0.75, this.theme.uiDanger, 0.5);
         this.spawnParticles(h.x, h.y, 42, this.theme.tileLight, 80, 290);
+
+        // Oczyszczenie wrogich pocisków przy zmniejszaniu planszy (BAL-05)
+        this._clearAmbientEnemyBullets();
+
         this.spawnFloatingText(
           `SZACHOWNICA SKRUSZONA DO ${h.targetGridSize}x${h.targetGridSize}!`,
           h.x,
@@ -2210,6 +2256,31 @@ export class Game {
       if (h.timer <= 0) {
         h.active = false;
       }
+    }
+  }
+
+  // Oczyszczenie wrogich pocisków przy zmniejszaniu areny przez Bossa (BAL-05)
+  _clearAmbientEnemyBullets() {
+    const bullets = this.pools.bullets.items;
+    const bSize = this.pools.bullets.size;
+    let clearedCount = 0;
+    for (let i = 0; i < bSize; i++) {
+      const b = bullets[i];
+      if (!b.active) continue;
+      if (b.isEnemy) {
+        this.spawnParticles(b.x, b.y, 4, this.theme.uiAccent, 20, 70);
+        this.pools.bullets.release(b);
+        clearedCount++;
+      }
+    }
+    if (clearedCount > 0) {
+      this.spawnFloatingText(
+        'OCZYSZCZENIE POCISKÓW ARENY!',
+        this.width / 2,
+        this.board.getBounds().top + 50,
+        this.theme.uiAccent,
+        1.15
+      );
     }
   }
 
@@ -2920,6 +2991,22 @@ export class Game {
         ctx.beginPath();
         ctx.arc(e.targetX, e.targetY, 30, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'king' && e.state === 'telegraph') {
+        // Pulsujący telegraf ostrzegawczy przed Królewską Salwą (BAL-04)
+        ctx.save();
+        const pulseR = 56 + Math.sin(this.time * 20) * 8;
+        ctx.strokeStyle = theme.uiDanger;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, pulseR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.12)';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, pulseR, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
     }

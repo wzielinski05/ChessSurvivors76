@@ -333,9 +333,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] King and Queen telegraphs trigger in distinct, readable intervals
-- [ ] Grid shrinkage by Grandmaster Hand clears ambient non-boss projectiles
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] King and Queen telegraphs trigger in distinct, readable intervals
+- [x] Grid shrinkage by Grandmaster Hand clears ambient non-boss projectiles
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: build
