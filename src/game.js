@@ -2025,6 +2025,12 @@ export class Game {
           e.pinTimer = 0;
           e.isPinned = false;
           e.pinVulnerability = 1.0;
+          e.pinnedTimer = 0;
+        } else {
+          const isBoss = e.type === 'king' || e.type === 'black_queen';
+          if (!isBoss) {
+            e.pinnedTimer = e.pinTimer;
+          }
         }
       }
 
@@ -2362,7 +2368,8 @@ export class Game {
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const moveScale = e.pinnedTimer > 0 || e.state === 'telegraph' ? 0 : 1;
+    const bossPinSlow = e.isPinned ? 0.6 : 1.0;
+    const moveScale = e.state === 'telegraph' ? 0 : bossPinSlow;
 
     if (e.state !== 'telegraph') {
       e.x = clamp(
@@ -2467,8 +2474,9 @@ export class Game {
       const dx = p.x - e.x;
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
-      e.x = clamp(e.x + (dx / dist) * e.speed * dt, bounds.left + 26, bounds.right - 26);
-      e.y = clamp(e.y + (dy / dist) * e.speed * dt, bounds.top + 26, bounds.bottom - 26);
+      const qPinSlow = e.isPinned ? 0.6 : 1.0;
+      e.x = clamp(e.x + (dx / dist) * e.speed * qPinSlow * dt, bounds.left + 26, bounds.right - 26);
+      e.y = clamp(e.y + (dy / dist) * e.speed * qPinSlow * dt, bounds.top + 26, bounds.bottom - 26);
 
       e.stateTimer -= dt * panicMult;
       if (e.stateTimer <= 0) {
@@ -2806,6 +2814,7 @@ export class Game {
               }
             }
 
+            this._checkPinning(e, b.vx, b.vy);
             this.damageEnemy(
               e,
               b.damage,
@@ -2828,6 +2837,75 @@ export class Game {
     }
   }
 
+  _checkPinning(e, bulletVx, bulletVy) {
+    if (!e || !e.active || e.pinTimer > 0) return false;
+    const bulletSpeed = Math.hypot(bulletVx, bulletVy);
+    if (bulletSpeed < 0.1) return false;
+
+    const dirX = bulletVx / bulletSpeed;
+    const dirY = bulletVy / bulletSpeed;
+    const bulletAngle = Math.atan2(dirY, dirX);
+    const maxDist = 250;
+    const maxDistSq = maxDist * maxDist;
+
+    let targetBehind = false;
+    const enemies = this.pools.enemies.items;
+    const size = this.pools.enemies.size;
+
+    // 1. Sprawdź czy za trafionym wrogiem znajduje się inny aktywny wróg w stożku +-18 stopni
+    for (let i = 0; i < size; i++) {
+      const other = enemies[i];
+      if (!other.active || other === e || other.zHeight > 28) continue;
+      const dx = other.x - e.x;
+      const dy = other.y - e.y;
+      const dSq = dx * dx + dy * dy;
+      if (dSq > maxDistSq || dSq < 100) continue;
+
+      const angleToOther = Math.atan2(dy, dx);
+      let diff = Math.abs(angleToOther - bulletAngle);
+      while (diff > Math.PI) diff = Math.abs(diff - Math.PI * 2);
+
+      if (diff <= 0.32) {
+        targetBehind = true;
+        break;
+      }
+    }
+
+    // 2. Jeśli brak wroga za plecami, sprawdź czy krawędź szachownicy jest w linii lotu (<= 120px)
+    if (!targetBehind) {
+      const bounds = this.board.getBounds();
+      const checkDist = 120;
+      const rayEndX = e.x + dirX * checkDist;
+      const rayEndY = e.y + dirY * checkDist;
+      if (
+        rayEndX <= bounds.left + 16 ||
+        rayEndX >= bounds.right - 16 ||
+        rayEndY <= bounds.top + 16 ||
+        rayEndY >= bounds.bottom - 16
+      ) {
+        targetBehind = true;
+      }
+    }
+
+    if (targetBehind) {
+      const isBoss = e.type === 'king' || e.type === 'black_queen';
+      e.pinTimer = 2.0;
+      e.isPinned = true;
+      e.pinVulnerability = isBoss ? 1.20 : 1.35;
+      if (!isBoss) {
+        e.pinnedTimer = 2.0;
+        e.vx = 0;
+        e.vy = 0;
+      }
+      this.spawnFloatingText('ZWIĄZANIE!', e.x, e.y - 28, '#55ddff', 1.05);
+      AudioEngine.playShieldDeflect();
+      this.spawnParticles(e.x, e.y, 14, '#55ddff', 60, 200);
+      return true;
+    }
+
+    return false;
+  }
+
   damageEnemy(
     e,
     dmg,
@@ -2842,7 +2920,8 @@ export class Game {
     const stunBonus = e.type === 'rook' && e.state === 'stunned' ? 1.5 : 1.0;
     // Czarny Król otrzymuje zredukowane obrażenia, dopóki żyją jego pionki-tarcze
     const kingShieldResist = e.type === 'king' && this.kingShieldCount > 0 ? 0.5 : 1.0;
-    const finalDmg = dmg * stunBonus * kingShieldResist;
+    const vulnMult = e.isPinned ? (e.pinVulnerability || 1.35) : 1.0;
+    const finalDmg = dmg * stunBonus * kingShieldResist * vulnMult;
     e.hp -= finalDmg;
     e.hitFlash = 0.09;
     e.scaleX = 1.22;

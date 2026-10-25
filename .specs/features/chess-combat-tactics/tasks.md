@@ -96,9 +96,9 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] When enemy is hit with another enemy/wall behind it, Pin state is applied for 2.0s
-- [ ] Normal pinned enemies are immobilized; bosses receive 40% slow instead
-- [ ] Gate check passes: `npm run build`
+- [x] When enemy is hit with another enemy/wall behind it, Pin state is applied for 2.0s
+- [x] Normal pinned enemies are immobilized; bosses receive 40% slow instead
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
