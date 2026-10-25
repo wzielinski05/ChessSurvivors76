@@ -1,7 +1,7 @@
 // --- GŁÓWNY SILNIK GRY & MASZYNA STANÓW (ETAP 3: BOSSOWIE, RĘKA ARCYMISTRZA & INDEXEDDB) ---
 
 import { THEME_ORDER } from './themes.js';
-import { CHESS_TEMPOS, PLAYER_CLASSES, GAMBIT_SHOP_ITEMS } from './chessData.js';
+import { CHESS_TEMPOS, PLAYER_CLASSES, GAMBIT_SHOP_ITEMS, FUSION_RECIPES } from './chessData.js';
 import { StorageEngine } from './storage.js';
 import { AudioEngine } from './audio.js';
 import { createPools } from './pool.js';
@@ -115,7 +115,15 @@ export class Game {
       afterimageTick: 0,
       scaleX: 1,
       scaleY: 1,
-      walkPhase: 0
+      walkPhase: 0,
+      bulwarkShieldCharges: 0,
+      bulwarkRegenTimer: 0,
+      absoluteDomainTimer: 0,
+      cathedralParryCount: 0,
+      cathedralParryTimer: 0,
+      amazonKillCount: 0,
+      translocationStartX: 0,
+      translocationStartY: 0
     };
 
     // Perki pasywne oraz aktywna zdolność Gambitu pod klawiszem [E]
@@ -250,6 +258,14 @@ export class Game {
     this.player.rookShieldCharges = 3;
     this.player.rookShieldRegenTimer = 0;
     this.player.royalMajestyTimer = 0;
+    this.player.bulwarkShieldCharges = 0;
+    this.player.bulwarkRegenTimer = 0;
+    this.player.absoluteDomainTimer = 0;
+    this.player.cathedralParryCount = 0;
+    this.player.cathedralParryTimer = 0;
+    this.player.amazonKillCount = 0;
+    this.player.translocationStartX = 0;
+    this.player.translocationStartY = 0;
     this.player.scaleX = 1;
     this.player.scaleY = 1;
 
@@ -752,6 +768,52 @@ export class Game {
       this.player.y - 34,
       this.theme.uiAccent,
       1.3
+    );
+    return true;
+  }
+
+  // Fuzja i ewolucja w hybrydę Fairy Chess (FUS-01)
+  applyFusion(fusionId) {
+    const cData = PLAYER_CLASSES[fusionId];
+    if (!cData || this.player.classId === fusionId) return false;
+    const recipe = FUSION_RECIPES.find((r) => r.id === fusionId);
+    if (!recipe) return false;
+    if (this.player.classId !== recipe.baseClass) return false;
+    if (this.gambitTokens < recipe.tokenCost) return false;
+
+    this.gambitTokens -= recipe.tokenCost;
+    this.player.classId = fusionId;
+    this.player.radius = cData.radius;
+    this.player.fireRate = cData.fireRate;
+    this.player.maxHp = Math.max(this.player.maxHp, cData.hp || 8);
+    this.player.hp = Math.min(this.player.maxHp, this.player.hp + 3);
+    this.player.dashCooldown = 0;
+
+    if (fusionId === 'empress') {
+      this.player.bulwarkShieldCharges = 4;
+      this.player.bulwarkRegenTimer = 0;
+    } else if (fusionId === 'cardinal') {
+      this.player.cathedralParryCount = 0;
+      this.player.cathedralParryTimer = 0;
+    } else if (fusionId === 'amazon') {
+      this.player.amazonKillCount = 0;
+      this.player.absoluteDomainTimer = 0;
+    }
+
+    this._recalcPlayerStats();
+
+    StorageEngine.unlockAchievement(`fusion_${fusionId}`, `Fuzja: ${cData.name}`);
+    AudioEngine.playShopBuy();
+    this.triggerHitstop(0.06);
+    this.addTrauma(0.55);
+    this.spawnShockwaveRing(this.player.x, this.player.y, 200, '#ffdd44', 0.55);
+    this.spawnParticles(this.player.x, this.player.y, 32, '#ffdd44', 80, 260);
+    this.spawnFloatingText(
+      `LEGENDA: ${cData.name}!`,
+      this.player.x,
+      this.player.y - 36,
+      '#ffdd44',
+      1.4
     );
     return true;
   }

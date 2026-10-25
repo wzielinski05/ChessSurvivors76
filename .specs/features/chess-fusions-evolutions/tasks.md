@@ -105,9 +105,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] `applyFusion` updates player stats, radius, speed, fireRate, and special ability without allocations
-- [ ] Tokens are deducted and floating fanfare text is displayed
-- [ ] Gate check passes: `npm run build`
+- [x] `applyFusion` updates player stats, radius, speed, fireRate, and special ability without allocations
+- [x] Tokens are deducted and floating fanfare text is displayed
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
