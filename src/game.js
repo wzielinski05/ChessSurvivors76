@@ -1043,7 +1043,106 @@ export class Game {
     }
   }
 
+  _updateCursor() {
+    if (!this.canvas) return;
+
+    // Na urządzeniach czysto dotykowych ukrywamy kursor systemowy
+    if (this.input && this.input.touchActive) {
+      if (this.canvas.style.cursor !== 'none') {
+        this.canvas.style.cursor = 'none';
+      }
+      return;
+    }
+
+    const mx = this.input ? this.input.mouseX : 0;
+    const my = this.input ? this.input.mouseY : 0;
+
+    // 1. Ekrany menu i modali
+    if (this.state !== 'PLAYING') {
+      let isHover = false;
+
+      if (this.state === 'GAMBIT_SHOP') {
+        const layout = getGambitShopLayout(this.width, this.height);
+        if (
+          (mx >= layout.closeBtn.x && mx <= layout.closeBtn.x + layout.closeBtn.w && my >= layout.closeBtn.y && my <= layout.closeBtn.y + layout.closeBtn.h) ||
+          (mx >= layout.returnBtn.x && mx <= layout.returnBtn.x + layout.returnBtn.w && my >= layout.returnBtn.y && my <= layout.returnBtn.y + layout.returnBtn.h) ||
+          layout.promoCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h) ||
+          layout.itemCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h)
+        ) {
+          isHover = true;
+        }
+      } else if (this.state === 'SETTINGS') {
+        const layout = getSettingsLayout(this.width, this.height);
+        if (
+          (mx >= layout.closeBtn.x && mx <= layout.closeBtn.x + layout.closeBtn.w && my >= layout.closeBtn.y && my <= layout.closeBtn.y + layout.closeBtn.h) ||
+          (mx >= layout.returnBtn.x && mx <= layout.returnBtn.x + layout.returnBtn.w && my >= layout.returnBtn.y && my <= layout.returnBtn.y + layout.returnBtn.h) ||
+          layout.aimRow.buttons.some(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) ||
+          layout.touchRow.buttons.some(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) ||
+          layout.hudRow.buttons.some(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) ||
+          layout.themeRow.buttons.some(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) ||
+          layout.soundRow.buttons.some(b => mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h)
+        ) {
+          isHover = true;
+        }
+      } else if (this.state === 'SELECT_TEMPO') {
+        const panelW = Math.min(this.width - 32, 780);
+        const cardW = (panelW - 64) / 3;
+        const startX = (this.width - panelW) / 2 + 16;
+        const cy = (this.height - 300) / 2 + 80;
+        for (let i = 0; i < 3; i++) {
+          const cx = startX + i * (cardW + 16);
+          if (mx >= cx && mx <= cx + cardW && my >= cy && my <= cy + 180) {
+            isHover = true;
+            break;
+          }
+        }
+      } else if (this.state === 'GAME_OVER' || this.state === 'VICTORY') {
+        isHover = true;
+      }
+
+      const desired = isHover ? 'pointer' : 'default';
+      if (this.canvas.style.cursor !== desired) {
+        this.canvas.style.cursor = desired;
+      }
+      return;
+    }
+
+    // 2. Stan PLAYING
+    // Przyciski paska HUD
+    const hudBtns = getHudButtonLayout(this.width, this.height, this.hudMode);
+    let isHudHover = false;
+    for (const key of Object.keys(hudBtns)) {
+      if (key === 'isPortrait') continue;
+      const btn = hudBtns[key];
+      if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+        isHudHover = true;
+        break;
+      }
+    }
+
+    if (isHudHover) {
+      if (this.canvas.style.cursor !== 'pointer') {
+        this.canvas.style.cursor = 'pointer';
+      }
+      return;
+    }
+
+    // Celowanie: w trybie 'mouse' rysujemy własny celownik canvasowy, więc kursor ukrywamy
+    if (this.aimMode === 'mouse') {
+      if (this.canvas.style.cursor !== 'none') {
+        this.canvas.style.cursor = 'none';
+      }
+    } else {
+      // W trybie 'auto' lub 'twinstick' na PC pokazujemy kursor do klikania
+      if (this.canvas.style.cursor !== 'default') {
+        this.canvas.style.cursor = 'default';
+      }
+    }
+  }
+
   update(dt) {
+    this._updateCursor();
+
     // Synchronizacja aktywności wirtualnych kontrolek dotykowych (SHOP-03, SHOP-04)
     if (this.input) {
       this.input.touchControlsActive = (this.state === 'PLAYING');
