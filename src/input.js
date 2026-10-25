@@ -26,8 +26,9 @@ export class InputManager {
     this.mouseJustRight = false;
 
     this.activePointers = new Map();
-    this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    this.touchActive = false;
+    const isMobileScreen = typeof screen !== 'undefined' && screen.width <= 1024;
+    this.isTouchDevice = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) && isMobileScreen;
+    this.touchActive = this.isTouchDevice;
 
     // Pływający wirtualny joystick (TOUCH-02)
     this.joystick = {

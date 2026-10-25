@@ -136,9 +136,9 @@ T5 -> T6
 - Skill: NONE
 
 **Done when**:
-- [ ] Moving mouse automatically hides on-screen virtual buttons
-- [ ] Touching screen during gameplay brings up on-screen touch buttons
-- [ ] Gate check passes: `npm run build`
+- [x] Moving mouse automatically hides on-screen virtual buttons
+- [x] Touching screen during gameplay brings up on-screen touch buttons
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

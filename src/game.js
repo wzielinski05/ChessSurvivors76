@@ -2891,8 +2891,12 @@ export class Game {
     // 11. Warstwa HUD, Zegara Szachowego, Celownika oraz ekranów modalnych
     renderGameHUD(ctx, this, theme);
 
-    // Nakładka sterowania dotykowego na telefonach (TOUCH-02, TOUCH-06)
-    if (this.state === 'PLAYING' && (this.input.isTouchDevice || this.input.touchActive)) {
+    // Nakładka sterowania dotykowego na telefonach (TOUCH-02, TOUCH-06, AIM-04, AIM-05)
+    const showTouch =
+      this.state === 'PLAYING' &&
+      (this.input.touchOverlayMode === 'always' ||
+        (this.input.touchOverlayMode !== 'off' && this.input.touchActive));
+    if (showTouch) {
       drawTouchControls(ctx, this.input, theme, this.player, this.activeAbilityCooldown);
     }
 
