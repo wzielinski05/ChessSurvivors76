@@ -175,9 +175,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Cardinal primary fire launches zig-zag lasers performing 90° Knight-step turns every 120px
-- [ ] Bouncing from arena borders increments damage multiplier by +30% up to 2 bounces
-- [ ] Gate check passes: `npm run build`
+- [x] Cardinal primary fire launches zig-zag lasers performing 90° Knight-step turns every 120px
+- [x] Bouncing from arena borders increments damage multiplier by +30% up to 2 bounces
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

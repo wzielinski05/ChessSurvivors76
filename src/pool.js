@@ -65,7 +65,9 @@ export function createPools() {
       isCrit: false,
       knockbackMult: 1,
       targetEnemy: null,
-      causesPin: false
+      causesPin: false,
+      travelDist: 0,
+      stepDir: 1
     })),
 
     // Pula cząsteczek (wióry drewna, neonowe iskry, piksele 1-bit, pył kredowy)

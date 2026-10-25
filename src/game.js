@@ -519,6 +519,8 @@ export class Game {
     b.knockbackMult = knockbackMult;
     b.targetEnemy = null;
     b.causesPin = false;
+    b.travelDist = 0;
+    b.stepDir = 1;
     return b;
   }
 
@@ -2137,6 +2139,24 @@ export class Game {
         isCrit,
         kbMult * 2.8
       );
+    } else if (p.classId === 'cardinal') {
+      // KARDYNAŁ: Święta Geometria — schodkowy promień laserowy (FUS-05)
+      const spd = 660;
+      this.spawnBullet(
+        muzzleX,
+        muzzleY,
+        Math.cos(angle) * spd,
+        Math.sin(angle) * spd,
+        false,
+        6.0,
+        3.2 * dmgMult * critMult,
+        2.2,
+        'zigzag_laser',
+        2,
+        0,
+        isCrit,
+        kbMult * 1.3
+      );
     } else {
       // PIONEK: Pojedynczy precyzyjny strzał wiórem drewna
       const spd = 590;
@@ -2868,6 +2888,23 @@ export class Game {
         b.rotation = Math.atan2(b.vy, b.vx);
       }
 
+      // Schodkowy zygzakowaty promień Kardynała (FUS-05)
+      if (!b.isEnemy && b.kind === 'zigzag_laser') {
+        const stepDist = Math.hypot(b.vx, b.vy) * stepDt;
+        b.travelDist += stepDist;
+        if (b.travelDist >= 120) {
+          b.travelDist -= 120;
+          const curSpd = Math.hypot(b.vx, b.vy) || 660;
+          let curAngle = Math.atan2(b.vy, b.vx);
+          curAngle += Math.PI * 0.5 * (b.stepDir || 1);
+          b.stepDir = -(b.stepDir || 1);
+          b.vx = Math.cos(curAngle) * curSpd;
+          b.vy = Math.sin(curAngle) * curSpd;
+          b.rotation = curAngle;
+          this.spawnParticles(b.x, b.y, 4, '#55ffdd', 35, 120);
+        }
+      }
+
       b.prevX = b.x;
       b.prevY = b.y;
       b.x += b.vx * stepDt;
@@ -2890,6 +2927,10 @@ export class Game {
         if (bounced) {
           b.bouncesLeft--;
           b.rotation = Math.atan2(b.vy, b.vx);
+          if (b.kind === 'zigzag_laser') {
+            b.damage *= 1.3; // +30% obrażeń po każdym odbiciu od bandy (FUS-05)
+            this.spawnFloatingText('+30% DMG', b.x, b.y - 18, '#55ffdd', 0.95);
+          }
           AudioEngine.playShieldDeflect();
           this.spawnParticles(b.x, b.y, 5, this.theme.bulletPlayer, 35, 110);
         }
@@ -4264,6 +4305,16 @@ export class Game {
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.radius * 0.45, 0, Math.PI * 2);
         ctx.fill();
+      } else if (b.kind === 'zigzag_laser') {
+        // Schodkowy promień Kardynała (FUS-05)
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(b.rotation);
+        ctx.fillStyle = '#55ffdd';
+        ctx.fillRect(-b.radius * 2.2, -b.radius * 0.6, b.radius * 4.4, b.radius * 1.2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-b.radius * 1.6, -b.radius * 0.25, b.radius * 3.2, b.radius * 0.5);
+        ctx.restore();
       } else {
         ctx.fillStyle = color;
         ctx.beginPath();
