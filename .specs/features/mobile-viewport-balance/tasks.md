@@ -288,10 +288,10 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Bullet configured for 6 waves of 30s (~3.5 min run)
-- [ ] Blitz configured for 8 waves of 45s (~6 min run) with Mini-Boss at wave 4
-- [ ] Rapid configured for 10 waves of 50s (~8.5 min run) with Mini-Boss at wave 5 and Queen at wave 10
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Bullet configured for 6 waves of 30s (~3.5 min run)
+- [x] Blitz configured for 8 waves of 45s (~6 min run) with Mini-Boss at wave 4
+- [x] Rapid configured for 10 waves of 50s (~8.5 min run) with Mini-Boss at wave 5 and Queen at wave 10
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: quick
