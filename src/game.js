@@ -993,6 +993,48 @@ export class Game {
         }
       }
 
+      // 2B. Kliknięcie kart fuzji figury (FUS-01)
+      if (layout.fusionCards) {
+        for (let i = 0; i < layout.fusionCards.length; i++) {
+          const card = layout.fusionCards[i];
+          if (
+            mx >= card.x &&
+            mx <= card.x + card.w &&
+            my >= card.y &&
+            my <= card.y + card.h
+          ) {
+            const recipe = card.recipe;
+            if (this.player.classId === recipe.id) {
+              this.spawnFloatingText('FUZJA JUŻ AKTYWNA!', card.x + card.w / 2, card.y - 16, '#55ff99', 1.0);
+              AudioEngine.playClockClick();
+            } else if (this.player.classId === recipe.baseClass) {
+              if (this.gambitTokens >= recipe.tokenCost) {
+                this.applyFusion(recipe.id);
+              } else {
+                this.spawnFloatingText(
+                  `BRAK ŻETONÓW (${this.gambitTokens}/${recipe.tokenCost})`,
+                  card.x + card.w / 2,
+                  card.y - 16,
+                  this.theme.uiDanger,
+                  1.0
+                );
+                AudioEngine.playShieldDeflect();
+              }
+            } else {
+              this.spawnFloatingText(
+                `WYMAGA: ${PLAYER_CLASSES[recipe.baseClass].name.toUpperCase()}`,
+                card.x + card.w / 2,
+                card.y - 16,
+                this.theme.uiDanger,
+                1.0
+              );
+              AudioEngine.playShieldDeflect();
+            }
+            return;
+          }
+        }
+      }
+
       // 3. Kliknięcie kart perków i zdolności aktywnych
       for (let i = 0; i < layout.itemCards.length; i++) {
         const card = layout.itemCards[i];
@@ -1175,10 +1217,11 @@ export class Game {
       if (this.state === 'GAMBIT_SHOP') {
         const layout = getGambitShopLayout(this.width, this.height);
         if (
-          (mx >= layout.closeBtn.x && mx <= layout.closeBtn.x + layout.closeBtn.w && my >= layout.closeBtn.y && my <= layout.closeBtn.y + layout.closeBtn.h) ||
-          (mx >= layout.returnBtn.x && mx <= layout.returnBtn.x + layout.returnBtn.w && my >= layout.returnBtn.y && my <= layout.returnBtn.y + layout.returnBtn.h) ||
-          layout.promoCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h) ||
-          layout.itemCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h)
+          (layout.closeBtn && mx >= layout.closeBtn.x && mx <= layout.closeBtn.x + layout.closeBtn.w && my >= layout.closeBtn.y && my <= layout.closeBtn.y + layout.closeBtn.h) ||
+          (layout.returnBtn && mx >= layout.returnBtn.x && mx <= layout.returnBtn.x + layout.returnBtn.w && my >= layout.returnBtn.y && my <= layout.returnBtn.y + layout.returnBtn.h) ||
+          (layout.promoCards && layout.promoCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h)) ||
+          (layout.fusionCards && layout.fusionCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h)) ||
+          (layout.itemCards && layout.itemCards.some(c => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h))
         ) {
           isHover = true;
         }

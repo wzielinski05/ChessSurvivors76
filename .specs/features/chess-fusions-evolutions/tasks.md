@@ -290,9 +290,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Available fusion cards render in Gambit Shop with recipes, costs, and badges
-- [ ] Clicking fusion card triggers purchase and applies transformation
-- [ ] Gate check passes: `npm run build && python3 scripts/bundle-singlefile.py`
+- [x] Available fusion cards render in Gambit Shop with recipes, costs, and badges
+- [x] Clicking fusion card triggers purchase and applies transformation
+- [x] Gate check passes: `npm run build && python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: build
