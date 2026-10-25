@@ -30,6 +30,8 @@ import {
   renderTempoSelectOverlay,
   getGambitShopLayout,
   renderGambitShopOverlay,
+  getSettingsLayout,
+  renderSettingsOverlay,
   renderBlurOverlay,
   renderGameOverOverlay,
   renderVictoryOverlay
@@ -180,6 +182,19 @@ export class Game {
       const found = CHESS_TEMPOS.find((t) => t.id === profile.tempoId);
       if (found) this.tempo = found;
     }
+    if (profile.aimMode) {
+      this.aimMode = profile.aimMode;
+      if (this.input) this.input.aimMode = profile.aimMode;
+    }
+    if (profile.touchOverlayMode && this.input) {
+      this.input.touchOverlayMode = profile.touchOverlayMode;
+    }
+    if (profile.hudMode) {
+      this.hudMode = profile.hudMode;
+    }
+    if (typeof profile.soundMuted === 'boolean') {
+      AudioEngine.setMuted(profile.soundMuted);
+    }
   }
 
   handleResize(winW, winH, dpr) {
@@ -297,6 +312,23 @@ export class Game {
       this.theme.uiAccent,
       1.1
     );
+  }
+
+  setThemeById(themeId) {
+    const idx = THEME_ORDER.findIndex(t => t.id === themeId);
+    if (idx !== -1) {
+      this.themeIndex = idx;
+      this.theme = THEME_ORDER[idx];
+      this.board.rebuildCache(this.theme);
+      StorageEngine.recordTheme(this.themeIndex);
+      this.spawnFloatingText(
+        `STYL: ${this.theme.name.toUpperCase()}`,
+        this.player.x,
+        this.player.y - 28,
+        this.theme.uiAccent,
+        1.1
+      );
+    }
   }
 
   toggleAimMode() {
@@ -901,6 +933,115 @@ export class Game {
     }
   }
 
+  openSettings() {
+    this.state = 'SETTINGS';
+    AudioEngine.playClockClick();
+  }
+
+  _handleSettingsInput() {
+    if (
+      this.input.consumeJustPressed('Escape') ||
+      this.input.consumeJustPressed('KeyO') ||
+      this.input.consumeJustPressed('Space') ||
+      this.input.consumeJustPressed('Enter')
+    ) {
+      this.state = 'PLAYING';
+      AudioEngine.playClockClick();
+      return;
+    }
+
+    if (this.input.consumeLeftClick()) {
+      const layout = getSettingsLayout(this.width, this.height);
+      const mx = this.input.mouseX;
+      const my = this.input.mouseY;
+
+      // 1. Zamknięcie przez [X]
+      if (
+        mx >= layout.closeBtn.x &&
+        mx <= layout.closeBtn.x + layout.closeBtn.w &&
+        my >= layout.closeBtn.y &&
+        my <= layout.closeBtn.y + layout.closeBtn.h
+      ) {
+        this.state = 'PLAYING';
+        AudioEngine.playClockClick();
+        return;
+      }
+
+      // 2. Tryb celowania (Aim Mode)
+      for (const btn of layout.aimRow.buttons) {
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          this.setAimMode(btn.id);
+          StorageEngine.recordSettings({ aimMode: btn.id });
+          AudioEngine.playClockClick();
+          return;
+        }
+      }
+
+      // 3. Przyciski dotykowe (Touch Mode)
+      for (const btn of layout.touchRow.buttons) {
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          this.input.touchOverlayMode = btn.id;
+          StorageEngine.recordSettings({ touchOverlayMode: btn.id });
+          AudioEngine.playClockClick();
+          return;
+        }
+      }
+
+      // 4. Układ HUD
+      for (const btn of layout.hudRow.buttons) {
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          this.hudMode = btn.id;
+          StorageEngine.recordSettings({ hudMode: btn.id });
+          AudioEngine.playClockClick();
+          return;
+        }
+      }
+
+      // 5. Motyw wizualny (Theme)
+      for (const btn of layout.themeRow.buttons) {
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          this.setThemeById(btn.id);
+          AudioEngine.playThemeSwap();
+          return;
+        }
+      }
+
+      // 6. Dźwięk / Audio
+      for (const btn of layout.soundRow.buttons) {
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          AudioEngine.setMuted(btn.id);
+          StorageEngine.recordSettings({ soundMuted: btn.id });
+          if (!btn.id) AudioEngine.playClockClick();
+          return;
+        }
+      }
+
+      // 7. Przycisk powrotu na dole
+      if (
+        mx >= layout.returnBtn.x &&
+        mx <= layout.returnBtn.x + layout.returnBtn.w &&
+        my >= layout.returnBtn.y &&
+        my <= layout.returnBtn.y + layout.returnBtn.h
+      ) {
+        this.state = 'PLAYING';
+        AudioEngine.playClockClick();
+        return;
+      }
+
+      // 8. Kliknięcie poza panelem
+      if (
+        mx < layout.panel.x ||
+        mx > layout.panel.x + layout.panel.w ||
+        my < layout.panel.y ||
+        my > layout.panel.y + layout.panel.h
+      ) {
+        this.state = 'PLAYING';
+        AudioEngine.playClockClick();
+        return;
+      }
+    }
+  }
+
   update(dt) {
     // Synchronizacja aktywności wirtualnych kontrolek dotykowych (SHOP-03, SHOP-04)
     if (this.input) {
@@ -952,6 +1093,13 @@ export class Game {
       return;
     }
 
+    // Obsługa stanu Ustawień Gry (SETTINGS) (SETT-01)
+    if (this.state === 'SETTINGS') {
+      this._handleSettingsInput();
+      this.input.endFrame();
+      return;
+    }
+
     // Obsługa stanu VICTORY (po pokonaniu Czarnej Królowej / Hetmana i Ręki Arcymistrza)
     if (this.state === 'VICTORY') {
       this.time += dt;
@@ -993,6 +1141,13 @@ export class Game {
         this.theme.uiAccent,
         0.95
       );
+    }
+
+    // Otwarcie menu Ustawień pod klawiszem ESCAPE lub O (SETT-01)
+    if (this.input.consumeJustPressed('Escape') || this.input.consumeJustPressed('KeyO')) {
+      this.openSettings();
+      this.input.endFrame();
+      return;
     }
 
     // Otwarcie Sklepu Gambitu i Awansu Figury w dowolnej chwili pod klawiszem TAB lub B (lub przyciskiem dotykowym)
@@ -2904,6 +3059,8 @@ export class Game {
       renderTempoSelectOverlay(ctx, this, theme);
     } else if (this.state === 'GAMBIT_SHOP') {
       renderGambitShopOverlay(ctx, this, theme);
+    } else if (this.state === 'SETTINGS') {
+      renderSettingsOverlay(ctx, this, theme);
     } else if (!this.input.hasFocus && this.state === 'PLAYING') {
       renderBlurOverlay(ctx, this, theme);
     } else if (this.state === 'GAME_OVER') {

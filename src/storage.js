@@ -11,6 +11,10 @@ function createDefaultProfile() {
   return {
     themeIndex: 0,
     tempoId: 'blitz',
+    aimMode: null, // 'mouse' | 'auto' | 'twinstick'
+    touchOverlayMode: 'auto', // 'auto' | 'always' | 'off'
+    hudMode: 'top', // 'top' | 'bottom' | 'compact'
+    soundMuted: false,
     totalKills: 0,
     totalRuns: 0,
     bossesDefeated: 0,
@@ -84,6 +88,10 @@ export const StorageEngine = {
     if (!data || typeof data !== 'object') return;
     if (typeof data.themeIndex === 'number') this.profile.themeIndex = data.themeIndex;
     if (typeof data.tempoId === 'string') this.profile.tempoId = data.tempoId;
+    if (typeof data.aimMode === 'string') this.profile.aimMode = data.aimMode;
+    if (typeof data.touchOverlayMode === 'string') this.profile.touchOverlayMode = data.touchOverlayMode;
+    if (typeof data.hudMode === 'string') this.profile.hudMode = data.hudMode;
+    if (typeof data.soundMuted === 'boolean') this.profile.soundMuted = data.soundMuted;
     if (typeof data.totalKills === 'number') this.profile.totalKills = data.totalKills;
     if (typeof data.totalRuns === 'number') this.profile.totalRuns = data.totalRuns;
     if (typeof data.bossesDefeated === 'number') this.profile.bossesDefeated = data.bossesDefeated;
@@ -146,6 +154,15 @@ export const StorageEngine = {
 
   recordTempo(tempoId) {
     this.profile.tempoId = tempoId;
+    this.saveAsync();
+  },
+
+  recordSettings(settings) {
+    if (!settings || typeof settings !== 'object') return;
+    if (typeof settings.aimMode === 'string') this.profile.aimMode = settings.aimMode;
+    if (typeof settings.touchOverlayMode === 'string') this.profile.touchOverlayMode = settings.touchOverlayMode;
+    if (typeof settings.hudMode === 'string') this.profile.hudMode = settings.hudMode;
+    if (typeof settings.soundMuted === 'boolean') this.profile.soundMuted = settings.soundMuted;
     this.saveAsync();
   },
 

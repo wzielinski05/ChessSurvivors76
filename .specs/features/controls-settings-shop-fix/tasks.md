@@ -160,9 +160,9 @@ T5 -> T6
 - Skill: NONE
 
 **Done when**:
-- [ ] Pressing ESC, O or clicking gear icon opens Settings menu
-- [ ] Selecting Aim Mode, Touch, HUD, Theme, or Audio immediately applies and saves choice
-- [ ] Gate check passes: `npm run build`
+- [x] Pressing ESC, O or clicking gear icon opens Settings menu
+- [x] Selecting Aim Mode, Touch, HUD, Theme, or Audio immediately applies and saves choice
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

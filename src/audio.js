@@ -24,6 +24,16 @@ export const AudioEngine = {
     }
   },
 
+  setMuted(val) {
+    this.muted = !!val;
+    return this.muted;
+  },
+
+  toggleMute() {
+    this.muted = !this.muted;
+    return this.muted;
+  },
+
   // Rdzeń syntezatora ZzFX (Frank Force, MIT) zoptymalizowany pod kątem braku alokacji zewnętrznych
   zzfx(
     volume = 1,

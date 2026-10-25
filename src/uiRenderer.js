@@ -2,6 +2,8 @@
 
 import { CHESS_TEMPOS, PLAYER_CLASSES, GAMBIT_SHOP_ITEMS } from './chessData.js';
 import { StorageEngine } from './storage.js';
+import { AudioEngine } from './audio.js';
+import { THEME_ORDER } from './themes.js';
 import { clamp } from './math.js';
 import { drawChessPiece, drawGambitToken } from './sprites.js';
 
@@ -813,6 +815,262 @@ export function renderVictoryOverlay(ctx, game, theme) {
     game.width / 2,
     by + 250
   );
+  ctx.restore();
+}
+
+export function getSettingsLayout(w, h) {
+  const isNarrow = w < 680;
+  const panelW = Math.min(w - 24, isNarrow ? 520 : 660);
+  const panelH = Math.min(h - 24, isNarrow ? 560 : 520);
+  const px = Math.floor((w - panelW) / 2);
+  const py = Math.floor((h - panelH) / 2);
+
+  const closeBtn = {
+    x: px + panelW - 38,
+    y: py + 10,
+    w: 28,
+    h: 28
+  };
+
+  const contentX = px + (isNarrow ? 14 : 24);
+  const contentW = panelW - (isNarrow ? 28 : 48);
+  const startY = py + 48;
+  const rowHeight = isNarrow ? 74 : 68;
+  const btnH = isNarrow ? 30 : 32;
+  const gap = 8;
+
+  // 1. Aim Mode
+  const aimButtons = [
+    { id: 'mouse', label: isNarrow ? 'Myszka' : 'Myszka (PC)' },
+    { id: 'auto', label: 'Auto-Aim' },
+    { id: 'twinstick', label: 'Twin-Stick' }
+  ];
+  const aimBtnW = Math.floor((contentW - (aimButtons.length - 1) * gap) / aimButtons.length);
+  const aimRow = {
+    labelY: startY + 14,
+    buttons: aimButtons.map((btn, i) => ({
+      id: btn.id,
+      label: btn.label,
+      x: contentX + i * (aimBtnW + gap),
+      y: startY + 20,
+      w: aimBtnW,
+      h: btnH
+    }))
+  };
+
+  // 2. Touch Mode
+  const touchStartY = startY + rowHeight;
+  const touchButtons = [
+    { id: 'auto', label: 'Auto' },
+    { id: 'always', label: isNarrow ? 'Zawsze' : 'Zawsze włączone' },
+    { id: 'off', label: 'Wyłączone' }
+  ];
+  const touchBtnW = Math.floor((contentW - (touchButtons.length - 1) * gap) / touchButtons.length);
+  const touchRow = {
+    labelY: touchStartY + 14,
+    buttons: touchButtons.map((btn, i) => ({
+      id: btn.id,
+      label: btn.label,
+      x: contentX + i * (touchBtnW + gap),
+      y: touchStartY + 20,
+      w: touchBtnW,
+      h: btnH
+    }))
+  };
+
+  // 3. HUD Mode
+  const hudStartY = touchStartY + rowHeight;
+  const hudButtons = [
+    { id: 'top', label: 'Góra' },
+    { id: 'bottom', label: 'Dół' },
+    { id: 'compact', label: 'Kompakt' }
+  ];
+  const hudBtnW = Math.floor((contentW - (hudButtons.length - 1) * gap) / hudButtons.length);
+  const hudRow = {
+    labelY: hudStartY + 14,
+    buttons: hudButtons.map((btn, i) => ({
+      id: btn.id,
+      label: btn.label,
+      x: contentX + i * (hudBtnW + gap),
+      y: hudStartY + 20,
+      w: hudBtnW,
+      h: btnH
+    }))
+  };
+
+  // 4. Themes
+  const themeStartY = hudStartY + rowHeight;
+  const themeButtons = THEME_ORDER.map(tid => ({
+    id: tid.id,
+    label: tid.name
+  }));
+  const themeCols = isNarrow ? 2 : 4;
+  const themeBtnW = Math.floor((contentW - (themeCols - 1) * gap) / themeCols);
+  const themeBtnH = isNarrow ? 26 : btnH;
+  const themeRow = {
+    labelY: themeStartY + 14,
+    buttons: themeButtons.map((btn, i) => {
+      const col = i % themeCols;
+      const row = Math.floor(i / themeCols);
+      return {
+        id: btn.id,
+        label: btn.label,
+        x: contentX + col * (themeBtnW + gap),
+        y: themeStartY + 20 + row * (themeBtnH + 4),
+        w: themeBtnW,
+        h: themeBtnH
+      };
+    })
+  };
+
+  // 5. Sound
+  const soundStartY = themeStartY + (isNarrow ? rowHeight + 20 : rowHeight);
+  const soundButtons = [
+    { id: false, label: 'Dźwięk: Włączony 🔊' },
+    { id: true, label: 'Wyciszony 🔇' }
+  ];
+  const soundBtnW = Math.floor((contentW - gap) / 2);
+  const soundRow = {
+    labelY: soundStartY + 14,
+    buttons: soundButtons.map((btn, i) => ({
+      id: btn.id,
+      label: btn.label,
+      x: contentX + i * (soundBtnW + gap),
+      y: soundStartY + 20,
+      w: soundBtnW,
+      h: btnH
+    }))
+  };
+
+  const btnW = Math.min(contentW, 380);
+  const returnBtn = {
+    x: px + Math.floor((panelW - btnW) / 2),
+    y: py + panelH - 46,
+    w: btnW,
+    h: 36
+  };
+
+  return {
+    isNarrow,
+    panel: { x: px, y: py, w: panelW, h: panelH },
+    closeBtn,
+    aimRow,
+    touchRow,
+    hudRow,
+    themeRow,
+    soundRow,
+    returnBtn
+  };
+}
+
+export function renderSettingsOverlay(ctx, game, theme) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(5, 5, 10, 0.88)';
+  ctx.fillRect(0, 0, game.width, game.height);
+
+  const layout = getSettingsLayout(game.width, game.height);
+  const { panel, closeBtn, aimRow, touchRow, hudRow, themeRow, soundRow, returnBtn, isNarrow } = layout;
+  const px = panel.x;
+  const py = panel.y;
+  const panelW = panel.w;
+  const panelH = panel.h;
+  const mx = game.input.mouseX;
+  const my = game.input.mouseY;
+
+  // Tło i obramowanie panelu
+  ctx.fillStyle = theme.boardFrame;
+  ctx.strokeStyle = theme.uiAccent;
+  ctx.lineWidth = 3;
+  ctx.fillRect(px, py, panelW, panelH);
+  ctx.strokeRect(px, py, panelW, panelH);
+
+  // Przycisk zamknięcia [X]
+  const isCloseHover =
+    mx >= closeBtn.x && mx <= closeBtn.x + closeBtn.w &&
+    my >= closeBtn.y && my <= closeBtn.y + closeBtn.h;
+  ctx.fillStyle = isCloseHover ? theme.uiDanger : 'rgba(0, 0, 0, 0.4)';
+  ctx.strokeStyle = isCloseHover ? '#ffffff' : theme.uiAccent;
+  ctx.lineWidth = 2;
+  ctx.fillRect(closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h);
+  ctx.strokeRect(closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('✕', closeBtn.x + closeBtn.w / 2, closeBtn.y + closeBtn.h / 2);
+
+  // Nagłówek Ustawień
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = theme.uiAccent;
+  ctx.font = `bold ${isNarrow ? 15 : 19}px monospace`;
+  ctx.fillText('⚙ USTAWIENIA ROZGRYWKI (SETTINGS)', px + 16, py + 32);
+
+  const renderSection = (title, row, activeVal) => {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = theme.uiText;
+    ctx.font = `bold ${isNarrow ? 10 : 12}px monospace`;
+    ctx.fillText(title, px + (isNarrow ? 14 : 24), row.labelY);
+
+    for (let i = 0; i < row.buttons.length; i++) {
+      const btn = row.buttons[i];
+      const isActive = btn.id === activeVal;
+      const isHover = mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
+
+      if (isActive) {
+        ctx.fillStyle = theme.uiAccent;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+      } else if (isHover) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.strokeStyle = theme.uiAccent;
+        ctx.lineWidth = 1.5;
+      } else {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 1;
+      }
+
+      ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+      ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = isActive ? '#050508' : '#ffffff';
+      ctx.font = `bold ${isNarrow ? 10 : 11}px monospace`;
+      const text = isActive ? `✔ ${btn.label}` : btn.label;
+      ctx.fillText(text, btn.x + btn.w / 2, btn.y + btn.h / 2);
+    }
+  };
+
+  renderSection('1. TRYB CELOWANIA (AIM MODE):', aimRow, game.aimMode);
+  renderSection('2. PRZYCISKI EKRANOWE (DOTYK):', touchRow, game.input.touchOverlayMode || 'auto');
+  renderSection('3. UKŁAD PASKA HUD:', hudRow, game.hudMode || 'top');
+  renderSection('4. MOTYW WIZUALNY:', themeRow, theme.id);
+  renderSection('5. DŹWIĘK I EFEKTY AUDIO:', soundRow, AudioEngine.muted);
+
+  // Przycisk powrotu na dole
+  const isReturnHover =
+    mx >= returnBtn.x && mx <= returnBtn.x + returnBtn.w &&
+    my >= returnBtn.y && my <= returnBtn.y + returnBtn.h;
+
+  ctx.fillStyle = isReturnHover ? theme.tileDark : 'rgba(10, 10, 18, 0.7)';
+  ctx.strokeStyle = theme.bulletPlayer;
+  ctx.lineWidth = 2.5;
+  ctx.fillRect(returnBtn.x, returnBtn.y, returnBtn.w, returnBtn.h);
+  ctx.strokeRect(returnBtn.x, returnBtn.y, returnBtn.w, returnBtn.h);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = theme.bulletPlayer;
+  ctx.font = `bold ${isNarrow ? 11 : 13}px monospace`;
+  ctx.fillText(
+    '▶ [ESC / KLIKNIJ] WRÓĆ DO ROZGRYWKI ◀',
+    returnBtn.x + returnBtn.w / 2,
+    returnBtn.y + returnBtn.h / 2
+  );
+
   ctx.restore();
 }
 
