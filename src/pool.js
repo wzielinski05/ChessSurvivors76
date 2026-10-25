@@ -69,7 +69,8 @@ export function createPools() {
       travelDist: 0,
       stepDir: 1,
       bypassArmor: false,
-      isChaosHorseshoe: false
+      isChaosHorseshoe: false,
+      isFrozenBullet: false
     })),
 
     // Pula cząsteczek (wióry drewna, neonowe iskry, piksele 1-bit, pył kredowy)

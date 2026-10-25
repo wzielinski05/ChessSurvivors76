@@ -243,9 +243,9 @@ T9 -> T10
 - Skill: NONE
 
 **Done when**:
-- [ ] Absolute Domain freezes enemy projectiles, slows enemies by 85%, and reflects bullets on dash
-- [ ] Every 5th enemy kill automatically triggers Checkmate Detonation on nearest elite/boss
-- [ ] Gate check passes: `npm run build`
+- [x] Absolute Domain freezes enemy projectiles, slows enemies by 85%, and reflects bullets on dash
+- [x] Every 5th enemy kill automatically triggers Checkmate Detonation on nearest elite/boss
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

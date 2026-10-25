@@ -523,6 +523,7 @@ export class Game {
     b.stepDir = 1;
     b.bypassArmor = false;
     b.isChaosHorseshoe = false;
+    b.isFrozenBullet = false;
     return b;
   }
 
@@ -1504,8 +1505,15 @@ export class Game {
       }
     }
 
-    // Spowolnienie świata o 75% podczas zdolności Hetmana (Royal Majesty)
-    const worldDt = this.player.royalMajestyTimer > 0 ? dt * 0.25 : dt;
+    // Spowolnienie świata: 85% podczas Władzy Absolutnej Amazonki (FUS-09), 75% podczas Hetmana
+    const isAbsoluteDomain =
+      this.player.classId === 'amazon' &&
+      (this.player.absoluteDomainTimer > 0 || this.player.royalMajestyTimer > 0);
+    const worldDt = isAbsoluteDomain
+      ? dt * 0.15
+      : this.player.royalMajestyTimer > 0
+      ? dt * 0.25
+      : dt;
 
     this._updateChessClock(worldDt);
     this._updatePlayer(dt);
@@ -1523,6 +1531,13 @@ export class Game {
   }
 
   _updateChessClock(dt) {
+    // Wstrzymanie odliczania zegara szachowego podczas Władzy Absolutnej Amazonki (FUS-09)
+    if (
+      this.player.classId === 'amazon' &&
+      (this.player.absoluteDomainTimer > 0 || this.player.royalMajestyTimer > 0)
+    ) {
+      return;
+    }
     if (!this.timeTrouble) {
       this.chessClock -= dt;
       if (this.chessClock <= 0) {
@@ -1558,6 +1573,7 @@ export class Game {
     if (p.fireCooldown > 0) p.fireCooldown -= dt;
     if (p.dashCooldown > 0) p.dashCooldown -= dt;
     if (p.royalMajestyTimer > 0) p.royalMajestyTimer -= dt;
+    if (p.absoluteDomainTimer > 0) p.absoluteDomainTimer -= dt;
     if (this.activeAbilityCooldown > 0) this.activeAbilityCooldown -= dt;
 
     // Regeneracja Tarczy Frontalnej Wieży (do 3 ładunków)
@@ -1614,7 +1630,8 @@ export class Game {
       this.input.consumeRightClick() ||
       (this.input.consumeTouchDash && this.input.consumeTouchDash());
     const canSpecial =
-      (p.dashCooldown <= 0 || p.royalMajestyTimer > 0) && p.dashTimer <= 0;
+      (p.dashCooldown <= 0 || p.royalMajestyTimer > 0 || p.absoluteDomainTimer > 0) &&
+      p.dashTimer <= 0;
 
     if (wantsSpecial && canSpecial) {
       this._triggerClassSpecial(move, bounds, cls);
@@ -1870,6 +1887,25 @@ export class Game {
       this.addTrauma(0.38);
       this.triggerHitstop(0.04);
       this.spawnFloatingText('TRANSLOCATION!', targetX, targetY - 28, '#55ffdd', 1.2);
+    } else if (p.classId === 'amazon') {
+      // WŁADZA ABSOLUTNA (FUS-09): Staza czasoprzestrzenna 4.0s, spowolnienie wrogów o 85%, zamrożenie pocisków, odbijanie dashem
+      if (p.absoluteDomainTimer <= 0) {
+        p.absoluteDomainTimer = 4.0;
+        p.royalMajestyTimer = 4.0;
+        p.dashCooldown = cls.dashCooldown;
+        AudioEngine.playCheckShout();
+        this.addTrauma(0.65);
+        this.spawnShockwaveRing(p.x, p.y, 180, '#ff44aa', 0.5);
+        this.spawnFloatingText('👑 WŁADZA ABSOLUTNA! (4.0s) 👑', p.x, p.y - 34, '#ff44aa', 1.35);
+      }
+      p.dashVx = dx * 720;
+      p.dashVy = dy * 720;
+      p.dashTimer = 0.16;
+      // Podczas Władzy Absolutnej cooldown dasha clampowany do minimum 0.30s (FUS-09)
+      if (p.absoluteDomainTimer > 0) {
+        p.dashCooldown = Math.max(p.dashCooldown, 0.30);
+      }
+      AudioEngine.playDash();
     } else {
       // PIONEK: EN PASSANT DASH
       p.dashVx = dx * 620;
@@ -3067,11 +3103,22 @@ export class Game {
         }
       }
 
-      b.prevX = b.x;
-      b.prevY = b.y;
-      b.x += b.vx * stepDt;
-      b.y += b.vy * stepDt;
-      b.life += stepDt;
+      const isAbsoluteDomain =
+        this.player.classId === 'amazon' &&
+        (this.player.absoluteDomainTimer > 0 || this.player.royalMajestyTimer > 0);
+
+      if (b.isEnemy && isAbsoluteDomain) {
+        b.isFrozenBullet = true;
+        b.prevX = b.x;
+        b.prevY = b.y;
+      } else {
+        if (b.isEnemy) b.isFrozenBullet = false;
+        b.prevX = b.x;
+        b.prevY = b.y;
+        b.x += b.vx * stepDt;
+        b.y += b.vy * stepDt;
+        b.life += stepDt;
+      }
 
       // Rykoszet pocisków Gońca i Hetmana od band szachownicy (1x odbicie wg Spec 3)
       if (!b.isEnemy && b.bouncesLeft > 0) {
@@ -3131,11 +3178,43 @@ export class Game {
           b.radius,
           p.x,
           p.y,
-          p.radius + (p.dashTimer > 0 ? 6 : 0)
+          p.radius +
+            (p.dashTimer > 0 ? (p.classId === 'amazon' && isAbsoluteDomain ? 16 : 6) : 0)
         );
 
         if (hitPlayer) {
-          if (p.classId === 'cardinal' && p.cathedralParryCount < 5) {
+          if (p.classId === 'amazon' && isAbsoluteDomain && p.dashTimer > 0) {
+            // Odbicie zamrożonego pocisku jako sojuszniczego z 3x obrażeniami (FUS-09)
+            const nearest = this._findNearestEnemy(b.x, b.y, 600);
+            let refVx = 650;
+            let refVy = 0;
+            if (nearest) {
+              const rdx = nearest.x - b.x;
+              const rdy = nearest.y - b.y;
+              const rDist = Math.hypot(rdx, rdy) || 1;
+              refVx = (rdx / rDist) * 750;
+              refVy = (rdy / rDist) * 750;
+            } else {
+              refVx = (p.dashVx || 600) * 1.2;
+              refVy = (p.dashVy || 0) * 1.2;
+            }
+            b.isEnemy = false;
+            b.damage = (b.damage || 1.0) * 3.0; // 3x obrażenia
+            b.vx = refVx;
+            b.vy = refVy;
+            b.life = 0;
+            b.maxLife = 2.0;
+            b.isCrit = true;
+            b.kind = 'laser_bolt';
+            b.rotation = Math.atan2(b.vy, b.vx);
+            b.isFrozenBullet = false;
+            AudioEngine.playParryBullet();
+            this.triggerHitstop(0.04);
+            this.addTrauma(0.2);
+            this.spawnFloatingText('ODBITY POCISK! (3x)', b.x, b.y - 20, '#ff44aa', 1.15);
+            this.spawnParticles(b.x, b.y, 10, '#ff44aa', 60, 180);
+            continue;
+          } else if (p.classId === 'cardinal' && p.cathedralParryCount < 5) {
             p.cathedralParryCount++;
             this.pools.bullets.release(b);
             AudioEngine.playParryBullet();
@@ -3532,6 +3611,12 @@ export class Game {
         : 1;
 
       this.kills++;
+      if (this.player.classId === 'amazon') {
+        this.player.amazonKillCount = (this.player.amazonKillCount || 0) + 1;
+        if (this.player.amazonKillCount % 5 === 0) {
+          this._triggerImperialCheckmate();
+        }
+      }
       this.tokenResidual += baseTokens * this.tempo.tokenDropMult;
       const dropCount = Math.floor(this.tokenResidual);
       this.tokenResidual -= dropCount;
@@ -3804,6 +3889,19 @@ export class Game {
     this.damageEnemy(e, finisherDmg, 0, 0, true, true);
   }
 
+  // Cesarski Mat Amazonki: automatyczny Szach-Mat na najbliższym czempionie/bielicie co 5 zabójstw (FUS-10)
+  _triggerImperialCheckmate() {
+    const p = this.player;
+    let target = this._findNearestEnemy(p.x, p.y, 800, true);
+    if (!target) {
+      target = this._findNearestEnemy(p.x, p.y, 800, false);
+    }
+    if (target && target.active) {
+      this.spawnFloatingText('👑 CESARSKI MAT! 👑', target.x, target.y - 42, '#ffdd44', 1.45);
+      this._triggerCheckmateDetonation(target, 4.0);
+    }
+  }
+
   damagePlayer(dmg, sourceX, sourceY) {
     const p = this.player;
     if (p.invulnTimer > 0 || p.dashTimer > 0 || p.zHeight > 20) return;
@@ -3992,11 +4090,19 @@ export class Game {
     // 2. Renderowanie zbuforowanej szachownicy (1 wywołanie drawImage - Bottleneck #2 Fix)
     this.board.render(ctx, theme);
 
-    // Pulsująca ramka w trybie Time Trouble (Panic Mode) lub Royal Majesty Hetmana
-    if (this.timeTrouble || this.player.royalMajestyTimer > 0) {
+    // Pulsująca ramka w trybie Time Trouble (Panic Mode) lub Royal Majesty Hetmana / Władzy Absolutnej Amazonki
+    if (
+      this.timeTrouble ||
+      this.player.royalMajestyTimer > 0 ||
+      this.player.absoluteDomainTimer > 0
+    ) {
       const bounds = this.board.getBounds();
       const pulse = 0.35 + 0.25 * Math.sin(this.time * 16);
-      ctx.strokeStyle = this.timeTrouble ? theme.uiDanger : theme.uiAccent;
+      ctx.strokeStyle = this.timeTrouble
+        ? theme.uiDanger
+        : this.player.classId === 'amazon'
+        ? '#ff44aa'
+        : theme.uiAccent;
       ctx.lineWidth = 6;
       ctx.globalAlpha = pulse;
       ctx.strokeRect(bounds.left, bounds.top, bounds.size, bounds.size);
@@ -4062,7 +4168,9 @@ export class Game {
         this.input.mouseX,
         this.input.mouseY,
         theme,
-        this.player.dashCooldown <= 0 || this.player.royalMajestyTimer > 0
+        this.player.dashCooldown <= 0 ||
+        this.player.royalMajestyTimer > 0 ||
+        this.player.absoluteDomainTimer > 0
       );
     }
   }
@@ -4479,6 +4587,9 @@ export class Game {
 
       if (theme.glow || b.isCrit) {
         drawFauxGlow(ctx, b.x, b.y, b.radius, color, 0.25);
+      }
+      if (b.isEnemy && b.isFrozenBullet) {
+        drawFauxGlow(ctx, b.x, b.y, b.radius + 3, '#ff44aa', 0.45);
       }
 
       if (b.kind === 'horseshoe') {
