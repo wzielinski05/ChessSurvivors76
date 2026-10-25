@@ -183,3 +183,4 @@ this.player = {
    - **Mitigation**: Rigid clamp of $0.30\text{ s}$ minimum dash cooldown and 12.0s special cooldown. Bullet reflection limited to active domain duration.
 2. **Risk**: Step calculations for zig-zag lasers in 60 FPS loop could impact performance.
    - **Mitigation**: Distance tracking uses scalar distance increments (`b.travelDist += stepDt * speed`) without trigonometric recalculations except on the $90^\circ$ step.
+

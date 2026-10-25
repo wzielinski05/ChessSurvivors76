@@ -147,3 +147,8 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Agent teamwork scratchpads and temporary run artifacts
+.agents/teamwork/
+.agents/session_backup.md
+ORIGINAL_REQUEST.md
