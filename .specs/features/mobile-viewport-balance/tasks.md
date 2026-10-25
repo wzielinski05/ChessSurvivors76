@@ -84,9 +84,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Canvas dimensions dynamically match `window.innerWidth` and `window.innerHeight`
-- [ ] Virtual resolution and DPR scaling updated on resize without letterboxing
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Canvas dimensions dynamically match `window.innerWidth` and `window.innerHeight`
+- [x] Virtual resolution and DPR scaling updated on resize without letterboxing
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: unit
 **Gate**: quick

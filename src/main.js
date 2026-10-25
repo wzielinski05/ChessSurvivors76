@@ -21,37 +21,45 @@ if (!window.google) {
   };
 }
 
-const V_WIDTH = 960;
-const V_HEIGHT = 720;
-
 const canvas = document.getElementById('gameCanvas');
 let currentDpr = 1;
 
-// Responsywne dopasowanie z zachowaniem proporcji 4:3 oraz obsługą HiDPI/Retina (devicePixelRatio)
+let initW = window.innerWidth || 960;
+let initH = window.innerHeight || 720;
+
+const input = new InputManager(canvas, initW, initH);
+const game = new Game(canvas, input);
+
+// Responsywne dopasowanie 100% okna (VIEW-01) z obsługą HiDPI/Retina do 2x (VIEW-05)
 function resizeViewport() {
   const winW = window.innerWidth;
   const winH = window.innerHeight;
-  const scale = Math.min(winW / V_WIDTH, winH / V_HEIGHT);
-
-  const displayW = Math.floor(V_WIDTH * scale);
-  const displayH = Math.floor(V_HEIGHT * scale);
-
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  if (canvas.width !== Math.round(V_WIDTH * dpr) || canvas.height !== Math.round(V_HEIGHT * dpr)) {
-    canvas.width = Math.round(V_WIDTH * dpr);
-    canvas.height = Math.round(V_HEIGHT * dpr);
-    currentDpr = dpr;
-  }
 
-  canvas.style.width = `${displayW}px`;
-  canvas.style.height = `${displayH}px`;
+  canvas.width = Math.round(winW * dpr);
+  canvas.height = Math.round(winH * dpr);
+  currentDpr = dpr;
+
+  canvas.style.width = `${winW}px`;
+  canvas.style.height = `${winH}px`;
+
+  game.width = winW;
+  game.height = winH;
+  game.dpr = dpr;
+
+  input.virtualWidth = winW;
+  input.virtualHeight = winH;
+
+  if (game.handleResize) {
+    game.handleResize(winW, winH, dpr);
+  } else if (game.board && game.board.resize) {
+    game.board.resize(winW, winH, dpr, game.theme);
+  }
 }
 
 window.addEventListener('resize', resizeViewport, { passive: true });
+window.addEventListener('orientationchange', resizeViewport, { passive: true });
 resizeViewport();
-
-const input = new InputManager(canvas, V_WIDTH, V_HEIGHT);
-const game = new Game(canvas, input);
 
 // Asynchroniczne wczytanie profilu gracza z IndexedDB (AM76_CHESS_DB)
 StorageEngine.init().then((profile) => {
