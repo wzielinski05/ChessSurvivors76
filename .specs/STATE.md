@@ -42,21 +42,22 @@
 - **Date**: 2026-10-25
 - **Status**: active
 
+### AD-006
+- **Decision**: Wdrożenie szachowych taktyk bojowych (Związanie, Widełki, Szach-Mat) przy zachowaniu Zero-GC
+- **Reason**: Zwiększenie głębi i tożsamości szachowej rozgrywki bez wprowadzania spadków klatek poniżej 60 FPS.
+- **Trade-off**: Wymaga rozszerzenia prealokowanych struktur wroga w pulach o pola statusów taktycznych (`pinTimer`, `mateStep`, `mateTimer`, `stunTimer`).
+- **Scope**: `src/game.js`, `src/sprites.js`
+- **Date**: 2026-10-25
+- **Status**: active
+
 ## Handoff
 
-- **Feature**: controls-settings-shop-fix / .specs/features/controls-settings-shop-fix/tasks.md
-- **Phase / Task**: Verified / Weryfikacja niezależnego sub-agenta (author != verifier) - PASS ✅
-- **Completed**:
-  - T1: Izolacja wskaźników dotyku od myszki i odblokowanie kliknięć w lewej połowie modali
-  - T2: Responsywny układ kart Sklepu Gambitu i jednolita detekcja kliknięć
-  - T3: Klasyczne celowanie myszką na PC z celownikiem taktycznym i czyste Auto-Aim
-  - T4: Inteligentna widoczność nakładki dotykowej (auto-ukrywanie przy myszy, auto-pokazywanie przy dotyku)
-  - T5: Dedykowane modalne Menu Ustawień (`SETTINGS`) z persystencją w StorageEngine (IndexedDB/localStorage)
-  - T6: Interaktywne, w pełni klikalne przyciski paska HUD na komputerach i telefonach
-  - Weryfikacja niezależnego Verifiera (14/14 ACs ✅ PASS, sensor 3/3 zabitych mutantów, build 243 KB)
-- **In-progress** (file:line): none
-- **Next step**: Gotowe do testów użytkownika (UAT) lub wdrożenia
+- **Feature**: chess-combat-tactics / .specs/features/chess-combat-tactics/tasks.md
+- **Phase / Task**: Tasks / Przygotowano spec.md, design.md i tasks.md (gotowe do zatwierdzenia)
+- **Completed**: Walidacja formalna specyfikacji (validate_spec: 0 errors) i zadań (validate_tasks: 0 errors)
+- **In-progress** (file:line): `.specs/features/chess-combat-tactics/tasks.md`
+- **Next step**: Rozpoczęcie Fazy 1 (T1: pola statusu taktycznego i cykl życia Zero-GC)
 - **Blockers**: none
-- **Uncommitted files**: none
+- **Uncommitted files**: `.specs/features/chess-combat-tactics/`
 - **Branch**: main
 
