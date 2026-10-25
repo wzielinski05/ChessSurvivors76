@@ -166,6 +166,20 @@ export class Game {
     }
   }
 
+  handleResize(winW, winH, dpr) {
+    this.width = winW;
+    this.height = winH;
+    this.dpr = dpr;
+    if (this.board) {
+      this.board.resize(winW, winH, dpr, this.theme);
+      const bounds = this.board.getBounds();
+      const margin = this.player.radius + 6;
+      this.player.x = clamp(this.player.x, bounds.left + margin, bounds.right - margin);
+      this.player.y = clamp(this.player.y, bounds.top + margin, bounds.bottom - margin);
+      this._updateCastlingClonePos();
+    }
+  }
+
   resetRun(initialState = 'PLAYING') {
     this.pools.bullets.clear();
     this.pools.particles.clear();

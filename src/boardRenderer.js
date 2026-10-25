@@ -7,13 +7,9 @@ export class BoardRenderer {
     this.virtualWidth = virtualWidth;
     this.virtualHeight = virtualHeight;
 
-    // Wymiary szachownicy 8x8 (8 * 68 = 544x544 px)
     this.gridCount = 8;
     this.activeGridSize = 8; // Może skurczyć się do 6 (6x6) oraz 4 (4x4) przez Rękę Arcymistrza
-    this.tileSize = 68;
-    this.boardSize = this.gridCount * this.tileSize; // 544 px
-    this.boardX = Math.floor((virtualWidth - this.boardSize) / 2); // 208
-    this.boardY = Math.floor((virtualHeight - this.boardSize) / 2) + 22; // 110 (miejsce na Zegar Szachowy u góry)
+    this._recalculateLayout(virtualWidth, virtualHeight);
 
     this.cacheCanvas = document.createElement('canvas');
     this.cacheCanvas.width = virtualWidth;
@@ -22,6 +18,51 @@ export class BoardRenderer {
 
     this.cachedThemeId = null;
     this.cachedGridSize = 8;
+  }
+
+  // Responsywne wyliczanie geometrii kwadratowej szachownicy (VIEW-02, VIEW-04)
+  _recalculateLayout(virtualWidth, virtualHeight) {
+    this.virtualWidth = virtualWidth;
+    this.virtualHeight = virtualHeight;
+
+    const isPortrait = virtualHeight > virtualWidth;
+    let targetSize = 544;
+
+    if (isPortrait) {
+      // Tryb pionowy (smartfon): szachownica wyśrodkowana w górnej/środkowej strefie,
+      // zostawiając dolne ~35% ekranu na wirtualny joystick i przyciski dotykowe
+      const maxW = Math.max(260, virtualWidth - 36);
+      const maxH = Math.max(260, Math.floor(virtualHeight * 0.56));
+      targetSize = Math.min(maxW, maxH);
+      this.tileSize = Math.max(30, Math.floor(targetSize / this.gridCount));
+      this.boardSize = this.gridCount * this.tileSize;
+      this.boardX = Math.floor((virtualWidth - this.boardSize) / 2);
+      this.boardY = Math.floor(virtualHeight * 0.12) + 16;
+    } else {
+      // Tryb poziomy (desktop / tablet / mobile landscape):
+      // Szachownica wycentrowana z marginesami na HUD u góry i dołu
+      const maxH = Math.max(280, virtualHeight - 110);
+      const maxW = Math.max(280, virtualWidth - 90);
+      targetSize = Math.min(maxH, maxW);
+      this.tileSize = Math.max(34, Math.floor(targetSize / this.gridCount));
+      this.boardSize = this.gridCount * this.tileSize;
+      this.boardX = Math.floor((virtualWidth - this.boardSize) / 2);
+      this.boardY = Math.floor((virtualHeight - this.boardSize) / 2) + 20;
+    }
+  }
+
+  resize(newWidth, newHeight, dpr, theme = null) {
+    if (this.virtualWidth === newWidth && this.virtualHeight === newHeight) return;
+    this._recalculateLayout(newWidth, newHeight);
+
+    this.cacheCanvas.width = newWidth;
+    this.cacheCanvas.height = newHeight;
+
+    if (theme) {
+      this.rebuildCache(theme);
+    } else {
+      this.cachedThemeId = null;
+    }
   }
 
   setActiveGridSize(newSize, theme = null) {

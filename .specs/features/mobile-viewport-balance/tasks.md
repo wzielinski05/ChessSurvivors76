@@ -106,9 +106,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Chessboard scales to maximum available viewport space while preserving square aspect ratio
-- [ ] `getBounds()` correctly reflects new dynamic screen boundaries
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Chessboard scales to maximum available viewport space while preserving square aspect ratio
+- [x] `getBounds()` correctly reflects new dynamic screen boundaries
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: unit
 **Gate**: quick
