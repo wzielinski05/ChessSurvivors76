@@ -23,7 +23,9 @@ import {
   drawCrosshair,
   drawFauxGlow,
   drawTouchControls,
-  drawLockOnTarget
+  drawLockOnTarget,
+  drawTacticalPinRing,
+  drawCheckmateCrown
 } from './sprites.js';
 import {
   renderGameHUD,
@@ -3865,16 +3867,14 @@ export class Game {
         }
       );
 
-      // Wizualny pierścień Związania (Pinning Shot)
-      if (e.pinnedTimer > 0) {
-        ctx.save();
-        ctx.strokeStyle = '#55ddff';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath();
-        ctx.arc(e.x, e.y + 4, e.radius + 5, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+      // Wizualny pierścień Związania (TAC-10)
+      if (e.isPinned || e.pinnedTimer > 0) {
+        drawTacticalPinRing(ctx, e.x, e.y, e.radius, this.time);
+      }
+
+      // Korona kombinacji Szach i Mat (TAC-10)
+      if (e.mateStep > 0 && e.mateTimer > 0) {
+        drawCheckmateCrown(ctx, e.x, e.y, e.mateStep, this.time);
       }
     }
 

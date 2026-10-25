@@ -800,3 +800,105 @@ export function drawLockOnTarget(ctx, x, y, radius, time, theme) {
   ctx.restore();
 }
 
+// Wizualny pierścień taktyczny Związania (TAC-10)
+export function drawTacticalPinRing(ctx, x, y, radius, timeSec = 0) {
+  ctx.save();
+  // Faux-glow podstawa
+  drawFauxGlow(ctx, x, y + 6, radius + 5, '#55ddff', 0.2);
+
+  // Elipsa perspektywiczna u podstawy figury
+  const rx = radius + 6;
+  const ry = rx * 0.45;
+  ctx.strokeStyle = '#55ddff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(x, y + 6, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 4 taktyczne znaczniki na obwodzie pierścienia
+  const ang = timeSec * 1.5;
+  for (let i = 0; i < 4; i++) {
+    const a = ang + (i * Math.PI) / 2;
+    const px = x + Math.cos(a) * rx;
+    const py = y + 6 + Math.sin(a) * ry;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Korona kombinacji Szach i Mat z rzymskimi cyframi I / II (TAC-10)
+export function drawCheckmateCrown(ctx, x, y, mateStep, timeSec = 0) {
+  if (mateStep < 1) return;
+  ctx.save();
+  const bob = Math.sin(timeSec * 6) * 2;
+  const cy = y - 28 + bob;
+
+  const color = mateStep === 1 ? '#ffaa44' : '#ff5533';
+  const glowAlpha = mateStep === 1 ? 0.22 : 0.32;
+
+  // Faux-glow za koroną bez użycia kosztownego ctx.shadowBlur
+  drawFauxGlow(ctx, x, cy, 10, color, glowAlpha);
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = mateStep === 1 ? '#2b1b08' : '#330c08';
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = 'round';
+
+  // Korona 3-wierzchołkowa
+  ctx.beginPath();
+  ctx.moveTo(x - 9, cy + 4);
+  ctx.lineTo(x - 9, cy - 4);
+  ctx.lineTo(x - 4, cy);
+  ctx.lineTo(x, cy - 7);
+  ctx.lineTo(x + 4, cy);
+  ctx.lineTo(x + 9, cy - 4);
+  ctx.lineTo(x + 9, cy + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Wypustki perełek na wierzchołkach korony
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x - 9, cy - 4, 1.4, 0, Math.PI * 2);
+  ctx.arc(x, cy - 7, 1.6, 0, Math.PI * 2);
+  ctx.arc(x + 9, cy - 4, 1.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rzymskie cyfry: "I" dla mateStep = 1, "II" dla mateStep = 2
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.4;
+  if (mateStep === 1) {
+    // "I"
+    ctx.beginPath();
+    ctx.moveTo(x, cy - 1);
+    ctx.lineTo(x, cy + 3);
+    ctx.moveTo(x - 1.5, cy - 1);
+    ctx.lineTo(x + 1.5, cy - 1);
+    ctx.moveTo(x - 1.5, cy + 3);
+    ctx.lineTo(x + 1.5, cy + 3);
+    ctx.stroke();
+  } else {
+    // "II"
+    ctx.beginPath();
+    ctx.moveTo(x - 2.2, cy - 1);
+    ctx.lineTo(x - 2.2, cy + 3);
+    ctx.moveTo(x + 2.2, cy - 1);
+    ctx.lineTo(x + 2.2, cy + 3);
+    ctx.moveTo(x - 3.5, cy - 1);
+    ctx.lineTo(x - 0.9, cy - 1);
+    ctx.moveTo(x + 0.9, cy - 1);
+    ctx.lineTo(x + 3.5, cy - 1);
+    ctx.moveTo(x - 3.5, cy + 3);
+    ctx.lineTo(x - 0.9, cy + 3);
+    ctx.moveTo(x + 0.9, cy + 3);
+    ctx.lineTo(x + 3.5, cy + 3);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+

@@ -232,9 +232,9 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Pinned enemies display cyan tactical ring at their base
-- [ ] Enemies with Checkmate marks display crown indicators above their sprites
-- [ ] Gate check passes: `npm run build && python3 scripts/bundle-singlefile.py`
+- [x] Pinned enemies display cyan tactical ring at their base
+- [x] Enemies with Checkmate marks display crown indicators above their sprites
+- [x] Gate check passes: `npm run build && python3 scripts/bundle-singlefile.py`
 
 **Tests**: visual
 **Gate**: build
