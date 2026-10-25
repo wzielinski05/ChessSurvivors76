@@ -264,9 +264,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] HUD adapts seamlessly to landscape (side anchors) and portrait (top/bottom split)
-- [ ] Bottom HUD option positions clock and health along lower screen margin
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] HUD adapts seamlessly to landscape (side anchors) and portrait (top/bottom split)
+- [x] Bottom HUD option positions clock and health along lower screen margin
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: unit
 **Gate**: quick

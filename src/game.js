@@ -68,6 +68,7 @@ export class Game {
     this.autoFire = false;
     this.lockedTarget = null;
     this.aimMode = 'hybrid'; // 'hybrid' | 'twinstick' (TOUCH-03, TOUCH-05)
+    this.hudMode = 'top'; // 'top' | 'bottom' | 'compact' (HUD-01..HUD-04)
     this.lastAimAngle = 0;
 
     this.player = {
@@ -298,6 +299,19 @@ export class Game {
       this.player.y - 24,
       this.theme.uiAccent,
       1.0
+    );
+  }
+
+  toggleHudMode() {
+    const modes = ['top', 'bottom', 'compact'];
+    const idx = modes.indexOf(this.hudMode);
+    this.hudMode = modes[(idx + 1) % modes.length];
+    this.spawnFloatingText(
+      `UKŁAD HUD: ${this.hudMode.toUpperCase()}`,
+      this.player.x,
+      this.player.y - 24,
+      this.theme.uiAccent,
+      0.9
     );
   }
 
@@ -849,6 +863,11 @@ export class Game {
     // Przełączanie trybu celowania mobilnego pod klawiszem J (TOUCH-05)
     if (this.input.consumeJustPressed('KeyJ')) {
       this.toggleAimMode();
+    }
+
+    // Przełączanie układu HUD pod klawiszem H (HUD-01..HUD-04)
+    if (this.input.consumeJustPressed('KeyH')) {
+      this.toggleHudMode();
     }
 
     // Wywołanie ekranu wyboru Tempa pod klawiszem M

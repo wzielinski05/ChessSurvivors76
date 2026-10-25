@@ -10,48 +10,63 @@ export function renderGameHUD(ctx, game, theme) {
   const p = game.player;
   const cls = PLAYER_CLASSES[p.classId];
 
-  // 1. Centralny Zegar Szachowy na górze ekranu (Specyfikacja 2.2)
-  const clockW = 256;
-  const clockH = 56;
-  const clockX = (game.width - clockW) / 2;
-  const clockY = 12;
+  const w = game.width;
+  const h = game.height;
+  const isPortrait = h > w;
+  const hudMode = game.hudMode || 'top';
+  const isBottom = hudMode === 'bottom';
+  const isCompact = hudMode === 'compact' || w < 720;
+  const bounds = game.board ? game.board.getBounds() : { left: 0, right: w, top: 0, bottom: h, size: Math.min(w, h) };
+  const sideSpace = Math.max(0, bounds.left);
+  const isWideSides = !isPortrait && sideSpace >= 165;
+
+  // Skalowanie proporcjonalne czcionek (HUD-04)
+  const fontScale = clamp(Math.min(w / 900, h / 680), 0.8, 1.15);
+  const titleSize = Math.round(13 * fontScale);
+  const bodySize = Math.round(11 * fontScale);
+
+  // 1. Zegar Szachowy (Top lub Bottom w zależności od trybu) (HUD-01, HUD-02, HUD-03)
+  const clockW = Math.min(isCompact ? 210 : 250, w - 24);
+  const clockH = isCompact ? 46 : 52;
+  const clockX = (w - clockW) / 2;
+  const clockY = isBottom ? h - clockH - 12 : 8;
 
   ctx.fillStyle = theme.boardFrame;
   ctx.strokeStyle = game.timeTrouble ? theme.uiDanger : theme.boardFrameInner;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2.5;
   ctx.fillRect(clockX, clockY, clockW, clockH);
   ctx.strokeRect(clockX, clockY, clockW, clockH);
 
-  // Pasek postępu czasu (max 30.0s)
+  // Pasek postępu czasu
   const timeRatio = clamp(game.chessClock / game.maxClock, 0, 1);
   ctx.fillStyle = game.timeTrouble ? theme.uiDanger : theme.uiAccent;
   ctx.globalAlpha = 0.24;
-  ctx.fillRect(clockX + 4, clockY + 4, (clockW - 8) * timeRatio, clockH - 8);
+  ctx.fillRect(clockX + 3, clockY + 3, (clockW - 6) * timeRatio, clockH - 6);
   ctx.globalAlpha = 1;
 
   ctx.textAlign = 'center';
-  ctx.font = 'bold 11px monospace';
+  ctx.font = `bold ${Math.max(9, Math.round(10 * fontScale))}px monospace`;
   ctx.fillStyle = theme.uiText;
   ctx.fillText(
     game.timeTrouble
-      ? '⚠ NIEDOCZAS (PANIC MODE +40%) ⚠'
-      : `TEMPO: ${game.tempo.name} • ZEGAR (MAX 30s)`,
-    game.width / 2,
-    clockY + 15
+      ? '⚠ NIEDOCZAS (PANIC +40%) ⚠'
+      : `TEMPO: ${game.tempo.name} • ZEGAR`,
+    w / 2,
+    clockY + (isCompact ? 13 : 15)
   );
 
-  ctx.font = 'bold 21px monospace';
+  ctx.font = `bold ${Math.max(16, Math.round(20 * fontScale))}px monospace`;
   ctx.fillStyle = game.timeTrouble ? theme.uiDanger : theme.uiAccent;
   const displayVal = game.timeTrouble ? game.panicTimer : game.chessClock;
-  ctx.fillText(`${displayVal.toFixed(1)}s`, game.width / 2, clockY + 37);
+  ctx.fillText(`${displayVal.toFixed(1)}s`, w / 2, clockY + (isCompact ? 33 : 36));
 
-  // Pasek postępu bieżącej fali pod zegarem (lub Pasek Zdrowia Bossa!)
+  // Pasek postępu fali lub Zdrowia Bossa
   const activeBoss = game.getActiveBoss ? game.getActiveBoss() : null;
   if (activeBoss) {
-    const bossBarW = 420;
-    const bossBarH = 18;
-    const bossBarX = (game.width - bossBarW) / 2;
-    const bossBarY = clockY + clockH + 6;
+    const bossBarW = Math.min(w - 32, 400);
+    const bossBarH = 16;
+    const bossBarX = (w - bossBarW) / 2;
+    const bossBarY = isBottom ? clockY - bossBarH - 5 : clockY + clockH + 5;
     const hpRatio = clamp(activeBoss.hp / activeBoss.maxHp, 0, 1);
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
@@ -63,118 +78,136 @@ export function renderGameHUD(ctx, game, theme) {
     ctx.strokeRect(bossBarX, bossBarY, bossBarW, bossBarH);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px monospace';
+    ctx.font = `bold ${Math.max(9, Math.round(10 * fontScale))}px monospace`;
     const bossTitle =
       activeBoss.type === 'king'
-        ? `👑 MINI-BOSS: CZARNY KRÓL (TARCZA PIONKÓW: ${game.kingShieldCount || 0}) 👑`
-        : `👑 BOSS FINAŁOWY: CZARNA KRÓLOWA & RĘKA ARCYMISTRZA (${game.board.activeGridSize}x${game.board.activeGridSize}) 👑`;
-    ctx.fillText(bossTitle, game.width / 2, bossBarY + 12);
+        ? `👑 CZARNY KRÓL (TARCZA: ${game.kingShieldCount || 0}) 👑`
+        : `👑 CZARNA KRÓLOWA (${game.board.activeGridSize}x${game.board.activeGridSize}) 👑`;
+    ctx.fillText(bossTitle, w / 2, bossBarY + 11);
   } else {
     const waveProg = clamp(game.waveTimer / game.waveDuration, 0, 1);
+    const waveBarY = isBottom ? clockY - 8 : clockY + clockH + 4;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(clockX, clockY + clockH + 4, clockW, 6);
+    ctx.fillRect(clockX, waveBarY, clockW, 5);
     ctx.fillStyle = theme.bulletPlayer;
-    ctx.fillRect(clockX, clockY + clockH + 4, clockW * waveProg, 6);
+    ctx.fillRect(clockX, waveBarY, clockW * waveProg, 5);
   }
 
-  // 2. Lewy górny panel: Klasa figury, Zdrowie, Tarcza Wieży, Zdolność Specjalna i Przedmiot [E]
-  ctx.textAlign = 'left';
-  ctx.font = 'bold 14px monospace';
-  ctx.fillStyle = theme.uiText;
-  ctx.fillText(`FIGURA: ${cls.name} (TIER ${cls.tier})`, 20, 26);
+  // 2. Lewy Panel: Klasa figury, Zdrowie, Tarcza, Zdolność, Perk (HUD-01, HUD-02)
+  let leftX = 16;
+  let leftY = isPortrait ? (isBottom ? 14 : clockY + clockH + 16) : (isWideSides ? 22 : 16);
 
-  // Ikony HP
+  ctx.textAlign = 'left';
+  ctx.font = `bold ${titleSize}px monospace`;
+  ctx.fillStyle = theme.uiText;
+  ctx.fillText(`FIGURA: ${cls.name} (T${cls.tier})`, leftX, leftY);
+
+  // Ikony HP (Serduszka)
+  const hpRadius = Math.max(5, Math.round(6.5 * fontScale));
+  const hpGap = hpRadius * 3;
   for (let h = 0; h < p.maxHp; h++) {
-    const hx = 26 + h * 20;
-    const hy = 46;
+    const hx = leftX + 4 + h * hpGap;
+    const hy = leftY + 18;
     ctx.fillStyle = h < p.hp ? theme.bulletPlayer : 'rgba(255,255,255,0.18)';
     ctx.strokeStyle = theme.playerOutline;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.4;
     ctx.beginPath();
-    ctx.arc(hx, hy, 6.5, 0, Math.PI * 2);
+    ctx.arc(hx, hy, hpRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
 
-  // Dodatkowe wskaźniki klasy (Frontal Shield dla Wieży / Royal Majesty dla Hetmana)
+  // Dodatkowe wskaźniki klasy
   if (p.classId === 'rook') {
-    ctx.font = 'bold 11px monospace';
+    ctx.font = `bold ${bodySize}px monospace`;
     ctx.fillStyle = '#55ddff';
-    ctx.fillText(`TARCZA FRONTALNA: ${p.rookShieldCharges}/3`, 26 + p.maxHp * 20 + 8, 50);
+    ctx.fillText(`TARCZA: ${p.rookShieldCharges}/3`, leftX + p.maxHp * hpGap + 10, leftY + 22);
   } else if (p.royalMajestyTimer > 0) {
-    ctx.font = 'bold 11px monospace';
+    ctx.font = `bold ${bodySize}px monospace`;
     ctx.fillStyle = theme.uiAccent;
-    ctx.fillText(`ROYAL MAJESTY: ${p.royalMajestyTimer.toFixed(1)}s`, 26 + p.maxHp * 20 + 8, 50);
+    ctx.fillText(`ROYAL: ${p.royalMajestyTimer.toFixed(1)}s`, leftX + p.maxHp * hpGap + 10, leftY + 22);
   }
 
-  // Status zdolności specjalnej (Spacja / PPM)
-  const dashReady = p.dashCooldown <= 0 || p.royalMajestyTimer > 0;
-  ctx.font = 'bold 11px monospace';
-  ctx.fillStyle = dashReady ? theme.uiAccent : 'rgba(255,255,255,0.45)';
-  ctx.fillText(
-    dashReady
-      ? `[SPACJA/PPM] ${cls.abilityName}: GOTOWY`
-      : `[SPACJA/PPM] ${cls.abilityName}: ${p.dashCooldown.toFixed(1)}s`,
-    20,
-    70
-  );
-
-  // Status aktywnej zdolności Gambitu pod klawiszem [E]
-  if (game.activeAbilityId) {
-    const actItem = GAMBIT_SHOP_ITEMS.find((it) => it.id === game.activeAbilityId);
-    const actReady = game.activeAbilityCooldown <= 0;
-    ctx.fillStyle = actReady ? '#55ff99' : 'rgba(255,255,255,0.45)';
+  // Zdolność specjalna i Gambit (w trybie szerokim lub kompaktowym)
+  if (!isPortrait) {
+    const dashReady = p.dashCooldown <= 0 || p.royalMajestyTimer > 0;
+    ctx.font = `bold ${bodySize}px monospace`;
+    ctx.fillStyle = dashReady ? theme.uiAccent : 'rgba(255,255,255,0.45)';
     ctx.fillText(
-      actReady
-        ? `[E] ${actItem ? actItem.name : 'GAMBIT'}: GOTOWY`
-        : `[E] ODNAWIANIE: ${game.activeAbilityCooldown.toFixed(1)}s`,
-      20,
-      88
+      dashReady ? `[SPACJA] ${cls.abilityName}: GOTOWY` : `[SPACJA] ${cls.abilityName}: ${p.dashCooldown.toFixed(1)}s`,
+      leftX,
+      leftY + 42
     );
-  } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.fillText('[E] BRAK AKTYWNEGO GAMBITU (KUP W SKLEPIE [TAB])', 20, 88);
+
+    if (game.activeAbilityId) {
+      const actItem = GAMBIT_SHOP_ITEMS.find((it) => it.id === game.activeAbilityId);
+      const actReady = game.activeAbilityCooldown <= 0;
+      ctx.fillStyle = actReady ? '#55ff99' : 'rgba(255,255,255,0.45)';
+      ctx.fillText(
+        actReady ? `[E] ${actItem ? actItem.name : 'GAMBIT'}: GOTOWY` : `[E] GAMBIT: ${game.activeAbilityCooldown.toFixed(1)}s`,
+        leftX,
+        leftY + 58
+      );
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillText('[E] GAMBIT: BRAK', leftX, leftY + 58);
+    }
   }
 
-  // 3. Prawy górny panel: Fala, Zbicia, Żetony Gambitu, Sklep i Styl
+  // 3. Prawy Panel: Fala, Zbicia, Żetony, Skróty (HUD-01, HUD-02)
+  let rightX = w - 16;
+  let rightY = isPortrait ? (isBottom ? 14 : clockY + clockH + 16) : (isWideSides ? 22 : 16);
+
   ctx.textAlign = 'right';
-  ctx.font = 'bold 14px monospace';
+  ctx.font = `bold ${titleSize}px monospace`;
   ctx.fillStyle = theme.uiText;
   ctx.fillText(
-    `FALA: ${game.wave}  |  ZBICIA: ${game.kills}  |  ŻETONY: ${game.gambitTokens}`,
-    game.width - 20,
-    26
+    `FALA: ${game.wave} | ZBICIA: ${game.kills} | ŻETONY: ${game.gambitTokens}`,
+    rightX,
+    rightY
   );
 
-  ctx.font = 'bold 11px monospace';
-  ctx.fillStyle = theme.uiAccent;
-  ctx.fillText(
-    `[TAB] SKLEP GAMBITU & AWANS   •   [M] TEMPO: ${game.tempo.name}`,
-    game.width - 20,
-    48
-  );
+  ctx.font = `bold ${bodySize}px monospace`;
+  if (!isPortrait) {
+    ctx.fillStyle = theme.uiAccent;
+    ctx.fillText(`[TAB] SKLEP & AWANS • [M] TEMPO`, rightX, rightY + 20);
 
-  ctx.fillStyle = theme.uiText;
-  ctx.fillText(`[T] STYL: ${theme.name}`, game.width - 20, 68);
+    ctx.fillStyle = theme.uiText;
+    ctx.fillText(`[T] STYL: ${theme.name} • [J] CEL: ${game.aimMode.toUpperCase()}`, rightX, rightY + 38);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText(
-    `[Q] AUTO-FIRE: ${game.autoFire ? 'ON' : 'OFF'}  |  ${game.fps} FPS`,
-    game.width - 20,
-    88
-  );
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText(`[H] HUD: ${hudMode.toUpperCase()} | [Q] AUTO-FIRE | ${game.fps} FPS`, rightX, rightY + 56);
+  } else {
+    // W orientacji Portrait: zwięzły wiersz statusu
+    ctx.fillStyle = theme.uiAccent;
+    ctx.fillText(`[TAB] SKLEP • [J] ${game.aimMode.toUpperCase()}`, rightX, rightY + 20);
+  }
 
-  // 4. Dolny pasek instrukcji
-  ctx.textAlign = 'center';
-  ctx.font = '11px monospace';
-  ctx.fillStyle = theme.uiText;
-  ctx.globalAlpha = 0.8;
-  ctx.fillText(
-    'WSAD: Ruch  •  LPM: Atak  •  SPACJA/PPM: Zdolność Figury  •  E: Aktywny Gambit  •  TAB: Sklep/Awans  •  T: Styl',
-    game.width / 2,
-    game.height - 12
-  );
-  ctx.globalAlpha = 1;
+  // 4. Dolny pasek instrukcji (ukrywany lub zwięzły na dotyku)
+  if (!isBottom) {
+    ctx.textAlign = 'center';
+    ctx.font = `${Math.max(9, Math.round(10 * fontScale))}px monospace`;
+    ctx.fillStyle = theme.uiText;
+    ctx.globalAlpha = 0.75;
+    if (game.input.touchActive || game.input.isTouchDevice) {
+      if (h - bounds.bottom >= 18) {
+        const touchHelp = game.aimMode === 'twinstick'
+          ? 'TWIN-STICK: Prawy drążek celuje i strzela • Lewy drążek: ruch'
+          : 'AUTO-AIM: Dotknij wroga aby zablokować cel • Lewy kciuk: ruch';
+        ctx.fillText(touchHelp, w / 2, h - 8);
+      }
+    } else {
+      ctx.fillText(
+        'WSAD: Ruch • LPM: Atak • SPACJA: Zryw • E: Gambit • TAB: Sklep • T: Styl • J: Celowanie • H: HUD',
+        w / 2,
+        h - 8
+      );
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore();
+}
 
   ctx.restore();
 }
