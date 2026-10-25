@@ -29,11 +29,11 @@
 ## Handoff
 
 - **Feature**: mobile-viewport-balance / .specs/features/mobile-viewport-balance/tasks.md
-- **Phase / Task**: Tasks / Zatwierdzenie planu zadań T1-T12 przed Execute
-- **Completed**: none
-- **In-progress** (file:line): `.specs/features/mobile-viewport-balance/tasks.md`
-- **Next step**: Rozpoczęcie implementacji zadań po zatwierdzeniu przez użytkownika
+- **Phase / Task**: Phase 4 / T1-T12 W pełni zrealizowane i zweryfikowane
+- **Completed**: T1 (dynamic viewport 100% canvas), T2 (responsive board geometry), T3 (procedural edge-to-edge tabletop), T4 (PointerEvent multitouch tracker), T5 (floating movement joystick), T6 (on-screen action buttons), T7 (hybrid auto-aim & touch focus), T8 (optional twin-stick touch), T9 (modular adaptive HUD), T10 (extended wave pacing per tempo), T11 (tempo progression in loop), T12 (sequential boss telegraphs & arena projectile cleanup)
+- **In-progress** (file:line): none
+- **Next step**: Testy przez użytkownika w przeglądarce i na urządzeniach mobilnych
 - **Blockers**: none
-- **Uncommitted files**: .specs/
+- **Uncommitted files**: none
 - **Branch**: main
 
