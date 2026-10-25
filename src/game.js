@@ -1520,6 +1520,21 @@ export class Game {
         // Rook Charge: taranowanie wrogów na drodze i wbijanie ich w bandy stołu
         if (p.classId === 'rook') {
           this._updateRookChargeRamming(bounds);
+        } else {
+          // En Passant Dash / inne szarże: detonacja związanych wrogów (TAC-03 Pin Shatter)
+          const enemies = this.pools.enemies.items;
+          const eSize = this.pools.enemies.size;
+          for (let i = 0; i < eSize; i++) {
+            const e = enemies[i];
+            if (!e.active || e.hitFlash > 0.05) continue;
+            const rSum = p.radius + e.radius + 6;
+            if (distSq(p.x, p.y, e.x, e.y) <= rSum * rSum) {
+              if (e.isPinned) {
+                this._triggerPinShatter(e, 3.5);
+              }
+              this.damageEnemy(e, 2.5, p.dashVx, p.dashVy, true, true);
+            }
+          }
         }
       }
 
@@ -2906,6 +2921,43 @@ export class Game {
     return false;
   }
 
+  _triggerPinShatter(sourceEnemy, baseDmg = 3.0) {
+    if (!sourceEnemy) return;
+    const sx = sourceEnemy.x;
+    const sy = sourceEnemy.y;
+    const shatterRadius = 140;
+    const shatterRadiusSq = shatterRadius * shatterRadius;
+    const aoeDamage = baseDmg * 1.5; // 150% obrażeń ataku (TAC-03)
+
+    sourceEnemy.isPinned = false;
+    sourceEnemy.pinTimer = 0;
+    sourceEnemy.pinnedTimer = 0;
+
+    this.spawnFloatingText('PIN SHATTER!', sx, sy - 34, '#55ddff', 1.2);
+    AudioEngine.playPieceShatter();
+    this.addTrauma(0.42);
+    this.triggerHitstop(0.04);
+
+    // Błękitne i białe cząsteczki rozbicia krystalicznego (TAC-03)
+    this.spawnParticles(sx, sy, 20, '#55ddff', 80, 260);
+    this.spawnParticles(sx, sy, 12, '#ffffff', 100, 200);
+
+    const enemies = this.pools.enemies.items;
+    const size = this.pools.enemies.size;
+
+    for (let i = 0; i < size; i++) {
+      const target = enemies[i];
+      if (!target.active || target === sourceEnemy || target.hp <= 0) continue;
+      const dSq = distSq(sx, sy, target.x, target.y);
+      if (dSq <= shatterRadiusSq) {
+        const dx = target.x - sx || 1;
+        const dy = target.y - sy || 1;
+        const d = Math.sqrt(dSq) || 1;
+        this.damageEnemy(target, aoeDamage, (dx / d) * 350, (dy / d) * 350, true, true);
+      }
+    }
+  }
+
   damageEnemy(
     e,
     dmg,
@@ -2950,6 +3002,9 @@ export class Game {
     }
 
     if (e.hp <= 0) {
+      if (e.isPinned) {
+        this._triggerPinShatter(e, finalDmg);
+      }
       // Inkrement Zegara Szachowego wg Specyfikacji 2.2:
       // Pionek +0.8s, Skoczek/Goniec +2.0s, Wieża +3.5s, Boss +10.0s
       const inc = isBoss

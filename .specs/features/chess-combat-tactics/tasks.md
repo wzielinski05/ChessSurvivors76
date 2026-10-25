@@ -118,8 +118,8 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Destroying or dashing into a pinned enemy triggers Pin Shatter AoE explosion
-- [ ] Gate check passes: `npm run build`
+- [x] Destroying or dashing into a pinned enemy triggers Pin Shatter AoE explosion
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
