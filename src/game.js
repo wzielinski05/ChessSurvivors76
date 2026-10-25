@@ -147,7 +147,7 @@ export class Game {
 
     // Statystyki sesji i fale
     this.wave = 1;
-    this.waveDuration = 22.0;
+    this.waveDuration = this.tempo ? (this.tempo.waveDuration || 45.0) : 45.0;
     this.bossSpawnedForWave = 0;
     this.kills = 0;
     this.gambitTokens = 0;
@@ -243,6 +243,7 @@ export class Game {
     this.panicTimer = 5.0;
 
     this.wave = 1;
+    this.waveDuration = this.tempo ? (this.tempo.waveDuration || 45.0) : 45.0;
     this.bossSpawnedForWave = 0;
     this.kills = 0;
     this.gambitTokens = 0;
@@ -563,7 +564,9 @@ export class Game {
 
   spawnBossForCurrentWave() {
     if (this.bossSpawnedForWave === this.wave) return;
-    if (this.wave === 3) {
+
+    // 1. Mini-Boss: Czarny Król (The Mad King)
+    if (this.wave === this.tempo.miniBossWave) {
       this.bossSpawnedForWave = this.wave;
       this.spawnEnemy('king');
       AudioEngine.playBossWarning();
@@ -575,7 +578,32 @@ export class Game {
         this.theme.uiDanger,
         1.25
       );
-    } else if (this.wave === 5) {
+      return;
+    }
+
+    // 2. Rada Królewska (Elitarna Straż) w formatach Blitz i Rapid
+    if (this.tempo.councilWave && this.wave === this.tempo.councilWave) {
+      this.bossSpawnedForWave = this.wave;
+      AudioEngine.playBossWarning();
+      this.addTrauma(0.5);
+      this.spawnFloatingText(
+        '👑 RADA KRÓLEWSKA: ELITARNA STRAŻ! 👑',
+        this.width / 2,
+        this.board.getBounds().top + 54,
+        this.theme.uiAccent,
+        1.25
+      );
+      this.spawnEnemy('rook');
+      this.spawnEnemy('rook');
+      this.spawnEnemy('bishop');
+      this.spawnEnemy('bishop');
+      this.spawnEnemy('knight');
+      this.spawnEnemy('knight');
+      return;
+    }
+
+    // 3. Boss Finałowy: Czarna Królowa & Ręka Arcymistrza
+    if (this.wave === this.tempo.finalBossWave) {
       this.bossSpawnedForWave = this.wave;
       this.spawnEnemy('black_queen');
       AudioEngine.playBossWarning();
@@ -587,6 +615,7 @@ export class Game {
         this.theme.uiDanger,
         1.25
       );
+      return;
     }
   }
 
@@ -1021,13 +1050,16 @@ export class Game {
     // Podczas walki z aktywnym Bossem licznik końca fali czeka na zbicie Bossa
     const activeBoss = this.getActiveBoss();
     if (!activeBoss) {
+      this.spawnBossForCurrentWave();
+
       this.waveTimer += dt;
       if (this.waveTimer >= this.waveDuration) {
         this.waveTimer = 0;
         this.wave++;
+        this.collectAllBoardTokens();
         StorageEngine.recordRunResult(this.tempo.id, this.wave, this.kills, false);
         this.spawnFloatingText(
-          `FALA ${this.wave} — SKLEP GAMBITU!`,
+          `FALA ${this.wave} / ${this.tempo.totalWaves || 8} — SKLEP GAMBITU!`,
           this.width / 2,
           this.board.getBounds().top + 40,
           this.theme.uiAccent,

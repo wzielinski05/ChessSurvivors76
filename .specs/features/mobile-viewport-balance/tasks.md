@@ -311,9 +311,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Wave timer and progression smoothly advance through 6/8/10 waves
-- [ ] Mini-Boss and Final Boss spawn according to tempo configuration
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Wave timer and progression smoothly advance through 6/8/10 waves
+- [x] Mini-Boss and Final Boss spawn according to tempo configuration
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: quick

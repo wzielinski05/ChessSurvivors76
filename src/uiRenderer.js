@@ -209,9 +209,6 @@ export function renderGameHUD(ctx, game, theme) {
   ctx.restore();
 }
 
-  ctx.restore();
-}
-
 export function renderTempoSelectOverlay(ctx, game, theme) {
   ctx.save();
   ctx.fillStyle = 'rgba(4, 4, 8, 0.84)';
