@@ -875,6 +875,11 @@ export class Game {
   }
 
   update(dt) {
+    // Synchronizacja aktywności wirtualnych kontrolek dotykowych (SHOP-03, SHOP-04)
+    if (this.input) {
+      this.input.touchControlsActive = (this.state === 'PLAYING');
+    }
+
     // Pomiar FPS
     this._frameCounter++;
     this._fpsTimer += dt;

@@ -68,9 +68,9 @@ T5 -> T6
 - Skill: NONE
 
 **Done when**:
-- [ ] Virtual movement joystick never activates on mouse clicks
-- [ ] Inside modal overlays (Shop, Tempo, Settings) clicks in left half of screen trigger UI actions
-- [ ] Gate check passes: `npm run build`
+- [x] Virtual movement joystick never activates on mouse clicks
+- [x] Inside modal overlays (Shop, Tempo, Settings) clicks in left half of screen trigger UI actions
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

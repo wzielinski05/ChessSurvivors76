@@ -59,6 +59,8 @@ export class InputManager {
     this.touchDashPressed = false;
     this.touchPerkPressed = false;
     this.touchShopPressed = false;
+    this.touchControlsActive = false; // Aktywne tylko w trakcie rozgrywki (PLAYING)
+    this.touchOverlayMode = 'auto'; // 'auto' | 'always' | 'off'
     this.lastTap = null;
 
     this.hasFocus = document.hasFocus ? document.hasFocus() : true;
@@ -87,6 +89,13 @@ export class InputManager {
   }
 
   _handlePointerDown(pointer) {
+    // 0. Kontrolki dotykowe działają TYLKO w trakcie aktywnej rozgrywki (PLAYING)
+    // i TYLKO dla rzeczywistego dotyku (lub gdy wymuszono 'always') (SHOP-03, SHOP-04)
+    const isTouch = pointer.type === 'touch' || (this.touchOverlayMode === 'always');
+    if (!this.touchControlsActive || !isTouch || this.touchOverlayMode === 'off') {
+      return;
+    }
+
     // 1. Sprawdzenie kliknięć w przyciski akcji dotykowych (TOUCH-06)
     const btns = this.getTouchButtonLayout();
     if (Math.hypot(pointer.x - btns.dash.x, pointer.y - btns.dash.y) <= btns.dash.radius + 10) {
@@ -244,6 +253,9 @@ export class InputManager {
 
     window.addEventListener('pointermove', (e) => {
       updateMousePos(e);
+      if (e.pointerType === 'mouse') {
+        this.touchActive = false;
+      }
       if (this.activePointers.has(e.pointerId)) {
         const p = this.activePointers.get(e.pointerId);
         const pos = screenToVirtual(e.clientX, e.clientY);
@@ -264,6 +276,8 @@ export class InputManager {
       if (e.pointerType === 'touch') {
         this.isTouchDevice = true;
         this.touchActive = true;
+      } else if (e.pointerType === 'mouse') {
+        this.touchActive = false;
       }
 
       const pointer = {
