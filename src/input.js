@@ -29,11 +29,82 @@ export class InputManager {
     this.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     this.touchActive = false;
 
+    // Pływający wirtualny joystick (TOUCH-02)
+    this.joystick = {
+      active: false,
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      maxRadius: 54,
+      vx: 0,
+      vy: 0
+    };
+
     this.hasFocus = document.hasFocus ? document.hasFocus() : true;
     this.onBlurCallback = null;
     this.onFocusCallback = null;
 
     this._bindEvents();
+  }
+
+  _handlePointerDown(pointer) {
+    // Lewa strefa ekranu (< 52% szerokości) rezerwowana dla wirtualnego joysticka ruchu
+    if (pointer.x < this.virtualWidth * 0.52 && !this.joystick.active) {
+      this.joystick.active = true;
+      this.joystick.pointerId = pointer.id;
+      this.joystick.startX = pointer.x;
+      this.joystick.startY = pointer.y;
+      this.joystick.currentX = pointer.x;
+      this.joystick.currentY = pointer.y;
+      this.joystick.vx = 0;
+      this.joystick.vy = 0;
+      pointer.consumed = true;
+    }
+  }
+
+  _handlePointerMove(pointer) {
+    if (this.joystick.active && pointer.id === this.joystick.pointerId) {
+      const dx = pointer.x - this.joystick.startX;
+      const dy = pointer.y - this.joystick.startY;
+      const dist = Math.hypot(dx, dy);
+      const maxR = this.joystick.maxRadius;
+
+      if (dist > maxR) {
+        this.joystick.currentX = this.joystick.startX + (dx / dist) * maxR;
+        this.joystick.currentY = this.joystick.startY + (dy / dist) * maxR;
+      } else {
+        this.joystick.currentX = pointer.x;
+        this.joystick.currentY = pointer.y;
+      }
+
+      const deadzone = 8;
+      if (dist > deadzone) {
+        const intensity = Math.min(1, (dist - deadzone) / (maxR - deadzone));
+        this.joystick.vx = (dx / (dist || 1)) * intensity;
+        this.joystick.vy = (dy / (dist || 1)) * intensity;
+      } else {
+        this.joystick.vx = 0;
+        this.joystick.vy = 0;
+      }
+    }
+  }
+
+  _handlePointerUp(pointer) {
+    if (this.joystick.active && pointer.id === this.joystick.pointerId) {
+      this.joystick.active = false;
+      this.joystick.pointerId = null;
+      this.joystick.vx = 0;
+      this.joystick.vy = 0;
+    }
+  }
+
+  _resetTouchControls() {
+    this.joystick.active = false;
+    this.joystick.pointerId = null;
+    this.joystick.vx = 0;
+    this.joystick.vy = 0;
   }
 
   _bindEvents() {
@@ -214,8 +285,12 @@ export class InputManager {
     this.mouseJustRight = false;
   }
 
-  // Zwraca znormalizowany wektor ruchu 360° (WSAD + Strzałki)
+  // Zwraca znormalizowany wektor ruchu 360° (Klawiatura WSAD/Strzałki lub Wirtualny Joystick Dotykowy)
   getMoveVector() {
+    if (this.joystick && this.joystick.active && (this.joystick.vx !== 0 || this.joystick.vy !== 0)) {
+      return { x: this.joystick.vx, y: this.joystick.vy };
+    }
+
     let dx = 0;
     let dy = 0;
     if (this.keys['KeyW'] || this.keys['ArrowUp']) dy -= 1;

@@ -174,9 +174,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Virtual joystick anchors on touch in left half of screen
-- [ ] Drag offset produces normalized `x, y` movement vector consumed by player
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Virtual joystick anchors on touch in left half of screen
+- [x] Drag offset produces normalized `x, y` movement vector consumed by player
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: quick
