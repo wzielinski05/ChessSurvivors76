@@ -2177,7 +2177,6 @@ export class Game {
       }
     }
   }
-  }
 
   _summonGrandmasterHand(targetGridSize) {
     const bounds = this.board.getBounds();
