@@ -7,6 +7,56 @@ import { THEME_ORDER } from './themes.js';
 import { clamp } from './math.js';
 import { drawChessPiece, drawGambitToken } from './sprites.js';
 
+export function getHudButtonLayout(w, h, hudMode) {
+  const isPortrait = h > w;
+  const isNarrow = w < 720;
+  const isBottom = hudMode === 'bottom';
+  const bounds = { left: 0, right: w, top: 0, bottom: h };
+  const sideSpace = Math.max(0, bounds.left);
+  const isWideSides = !isPortrait && sideSpace >= 165;
+
+  const clockH = (hudMode === 'compact' || w < 720) ? 46 : 52;
+  const clockY = isBottom ? h - clockH - 12 : 8;
+  const rightY = isPortrait ? (isBottom ? 14 : clockY + clockH + 16) : (isWideSides ? 22 : 16);
+
+  if (isPortrait || isNarrow) {
+    const btnW = 42;
+    const btnH = 26;
+    const gap = 6;
+    const totalW = 4 * btnW + 3 * gap;
+    const startX = Math.max(8, w - 16 - totalW);
+    const startY = rightY + 8;
+
+    return {
+      isPortrait: true,
+      shop: { id: 'shop', label: '🛒', x: startX, y: startY, w: btnW, h: btnH },
+      settings: { id: 'settings', label: '⚙', x: startX + (btnW + gap), y: startY, w: btnW, h: btnH },
+      aim: { id: 'aim', label: '🎯', x: startX + 2 * (btnW + gap), y: startY, w: btnW, h: btnH },
+      theme: { id: 'theme', label: '🎨', x: startX + 3 * (btnW + gap), y: startY, w: btnW, h: btnH }
+    };
+  }
+
+  // Desktop / Landscape
+  const btnW = 92;
+  const btnH = 22;
+  const gap = 6;
+  const col1X = w - 16 - 2 * btnW - gap;
+  const col2X = w - 16 - btnW;
+  const row1Y = rightY + 8;
+  const row2Y = row1Y + btnH + 4;
+  const row3Y = row2Y + btnH + 4;
+
+  return {
+    isPortrait: false,
+    shop: { id: 'shop', label: '🛒 SKLEP', key: 'TAB', x: col1X, y: row1Y, w: btnW, h: btnH },
+    settings: { id: 'settings', label: '⚙ OPCJE', key: 'ESC', x: col2X, y: row1Y, w: btnW, h: btnH },
+    aim: { id: 'aim', label: '🎯 CEL', key: 'J', x: col1X, y: row2Y, w: btnW, h: btnH },
+    theme: { id: 'theme', label: '🎨 STYL', key: 'T', x: col2X, y: row2Y, w: btnW, h: btnH },
+    tempo: { id: 'tempo', label: '⏱ TEMPO', key: 'M', x: col1X, y: row3Y, w: btnW, h: btnH },
+    hud: { id: 'hud', label: '📐 HUD', key: 'H', x: col2X, y: row3Y, w: btnW, h: btnH }
+  };
+}
+
 export function renderGameHUD(ctx, game, theme) {
   ctx.save();
   const p = game.player;
@@ -169,20 +219,32 @@ export function renderGameHUD(ctx, game, theme) {
     rightY
   );
 
-  ctx.font = `bold ${bodySize}px monospace`;
-  if (!isPortrait) {
-    ctx.fillStyle = theme.uiAccent;
-    ctx.fillText(`[TAB] SKLEP & AWANS • [M] TEMPO`, rightX, rightY + 20);
+  // Interaktywne przyciski paska HUD (SETT-04)
+  const hudBtns = getHudButtonLayout(w, h, hudMode);
+  const mx = game.input.mouseX;
+  const my = game.input.mouseY;
 
-    ctx.fillStyle = theme.uiText;
-    ctx.fillText(`[T] STYL: ${theme.name} • [J] CEL: ${game.aimMode.toUpperCase()}`, rightX, rightY + 38);
+  for (const key of Object.keys(hudBtns)) {
+    if (key === 'isPortrait') continue;
+    const btn = hudBtns[key];
+    const isHover = mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h;
 
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillText(`[H] HUD: ${hudMode.toUpperCase()} | [Q] AUTO-FIRE | ${game.fps} FPS`, rightX, rightY + 56);
-  } else {
-    // W orientacji Portrait: zwięzły wiersz statusu
-    ctx.fillStyle = theme.uiAccent;
-    ctx.fillText(`[TAB] SKLEP • [J] ${game.aimMode.toUpperCase()}`, rightX, rightY + 20);
+    ctx.fillStyle = isHover ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.45)';
+    ctx.strokeStyle = isHover ? '#ffffff' : theme.uiAccent;
+    ctx.lineWidth = isHover ? 1.6 : 1.0;
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = isHover ? theme.bulletPlayer : theme.uiText;
+    ctx.font = `bold ${Math.max(9, Math.round(10 * fontScale))}px monospace`;
+
+    let label = btn.label;
+    if (btn.id === 'aim' && !hudBtns.isPortrait) {
+      label = `🎯 ${game.aimMode.toUpperCase()}`;
+    }
+    ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2);
   }
 
   // 4. Dolny pasek instrukcji (ukrywany lub zwięzły na dotyku)

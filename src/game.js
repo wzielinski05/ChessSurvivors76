@@ -27,6 +27,7 @@ import {
 } from './sprites.js';
 import {
   renderGameHUD,
+  getHudButtonLayout,
   renderTempoSelectOverlay,
   getGambitShopLayout,
   renderGambitShopOverlay,
@@ -1159,6 +1160,42 @@ export class Game {
       this.openGambitShop();
       this.input.endFrame();
       return;
+    }
+
+    // Obsługa kliknięć i tapnięć w przyciski paska HUD (SETT-04)
+    if (this.state === 'PLAYING') {
+      const hudBtns = getHudButtonLayout(this.width, this.height, this.hudMode);
+      const mx = this.input.mouseX;
+      const my = this.input.mouseY;
+
+      let hitHudBtn = null;
+      for (const key of Object.keys(hudBtns)) {
+        if (key === 'isPortrait') continue;
+        const btn = hudBtns[key];
+        if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+          hitHudBtn = btn;
+          break;
+        }
+      }
+
+      if (hitHudBtn && this.input.consumeLeftClick()) {
+        if (hitHudBtn.id === 'settings') {
+          this.openSettings();
+        } else if (hitHudBtn.id === 'shop') {
+          this.openGambitShop();
+        } else if (hitHudBtn.id === 'aim') {
+          this.toggleAimMode();
+        } else if (hitHudBtn.id === 'theme') {
+          this.cycleTheme();
+        } else if (hitHudBtn.id === 'tempo') {
+          this.state = 'SELECT_TEMPO';
+          AudioEngine.playClockClick();
+        } else if (hitHudBtn.id === 'hud') {
+          this.toggleHudMode();
+        }
+        this.input.endFrame();
+        return;
+      }
     }
 
     // Obsługa stanu GAME_OVER

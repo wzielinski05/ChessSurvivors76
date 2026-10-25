@@ -182,8 +182,8 @@ T5 -> T6
 - Skill: NONE
 
 **Done when**:
-- [ ] Clicking or tapping HUD buttons triggers corresponding menu or action
-- [ ] Gate check passes: `npm run build && python3 scripts/bundle-singlefile.py`
+- [x] Clicking or tapping HUD buttons triggers corresponding menu or action
+- [x] Gate check passes: `npm run build && python3 scripts/bundle-singlefile.py`
 
 **Tests**: integration
 **Gate**: build
