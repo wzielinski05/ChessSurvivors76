@@ -334,15 +334,86 @@ export function renderTempoSelectOverlay(ctx, game, theme) {
   ctx.restore();
 }
 
+// Obliczenie współrzędnych i siatki Sklepu Gambitu (współdzielone między rendererem a obsługą kliknięć) (SHOP-01, SHOP-05)
+export function getGambitShopLayout(w, h) {
+  const isNarrow = w < 840;
+  const panelW = Math.min(w - 20, 880);
+  const panelH = Math.min(h - 20, isNarrow ? 660 : 620);
+  const px = Math.floor((w - panelW) / 2);
+  const py = Math.floor((h - panelH) / 2);
+
+  const closeBtn = { x: px + panelW - 42, y: py + 12, w: 30, h: 30 };
+
+  const promoClasses = ['knight', 'bishop', 'rook', 'queen'];
+  const promoCols = isNarrow ? 2 : 4;
+  const promoRows = isNarrow ? 2 : 1;
+  const promoGap = isNarrow ? 10 : 16;
+  const promoStartX = px + (isNarrow ? 12 : 24);
+  const promoStartY = py + 72;
+  const promoW = Math.floor((panelW - (isNarrow ? 24 : 48) - (promoCols - 1) * promoGap) / promoCols);
+  const promoH = isNarrow ? 90 : 164;
+
+  const promoCards = promoClasses.map((cid, i) => {
+    const col = i % promoCols;
+    const row = Math.floor(i / promoCols);
+    return {
+      cid,
+      x: promoStartX + col * (promoW + promoGap),
+      y: promoStartY + row * (promoH + promoGap),
+      w: promoW,
+      h: promoH
+    };
+  });
+
+  const itemCols = isNarrow ? 2 : 4;
+  const itemRows = isNarrow ? 4 : 2;
+  const itemGapX = isNarrow ? 10 : 16;
+  const itemGapY = isNarrow ? 8 : 14;
+  const itemStartX = px + (isNarrow ? 12 : 24);
+  const itemStartY = promoStartY + promoRows * (promoH + promoGap) + (isNarrow ? 22 : 36);
+  const itemW = Math.floor((panelW - (isNarrow ? 24 : 48) - (itemCols - 1) * itemGapX) / itemCols);
+  const itemH = isNarrow ? 80 : 110;
+
+  const itemCards = [];
+  for (let i = 0; i < 8; i++) {
+    const col = i % itemCols;
+    const row = Math.floor(i / itemCols);
+    itemCards.push({
+      index: i,
+      x: itemStartX + col * (itemW + itemGapX),
+      y: itemStartY + row * (itemH + itemGapY),
+      w: itemW,
+      h: itemH
+    });
+  }
+
+  const btnW = Math.min(panelW - 32, 420);
+  const btnH = 40;
+  const bx = px + Math.floor((panelW - btnW) / 2);
+  const by = py + panelH - 52;
+  const returnBtn = { x: bx, y: by, w: btnW, h: btnH };
+
+  return {
+    isNarrow,
+    panel: { x: px, y: py, w: panelW, h: panelH },
+    closeBtn,
+    promoCards,
+    itemCards,
+    returnBtn
+  };
+}
+
 export function renderGambitShopOverlay(ctx, game, theme) {
   ctx.save();
-  ctx.fillStyle = 'rgba(5, 5, 10, 0.86)';
+  ctx.fillStyle = 'rgba(5, 5, 10, 0.88)';
   ctx.fillRect(0, 0, game.width, game.height);
 
-  const panelW = 880;
-  const panelH = 620;
-  const px = (game.width - panelW) / 2;
-  const py = (game.height - panelH) / 2;
+  const layout = getGambitShopLayout(game.width, game.height);
+  const { panel, closeBtn, promoCards, itemCards, returnBtn, isNarrow } = layout;
+  const px = panel.x;
+  const py = panel.y;
+  const panelW = panel.w;
+  const panelH = panel.h;
 
   ctx.fillStyle = theme.boardFrame;
   ctx.strokeStyle = theme.uiAccent;
@@ -350,50 +421,63 @@ export function renderGambitShopOverlay(ctx, game, theme) {
   ctx.fillRect(px, py, panelW, panelH);
   ctx.strokeRect(px, py, panelW, panelH);
 
+  // Przycisk zamknięcia [X] w prawym górnym rogu
+  const isCloseHover =
+    game.input.mouseX >= closeBtn.x &&
+    game.input.mouseX <= closeBtn.x + closeBtn.w &&
+    game.input.mouseY >= closeBtn.y &&
+    game.input.mouseY <= closeBtn.y + closeBtn.h;
+
+  ctx.fillStyle = isCloseHover ? theme.uiDanger : 'rgba(0, 0, 0, 0.4)';
+  ctx.strokeStyle = isCloseHover ? '#ffffff' : theme.uiAccent;
+  ctx.lineWidth = 2;
+  ctx.fillRect(closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h);
+  ctx.strokeRect(closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('✕', closeBtn.x + closeBtn.w / 2, closeBtn.y + closeBtn.h / 2);
+
   // Nagłówek Sklepu Gambitu
   ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = theme.uiAccent;
-  ctx.font = 'bold 22px monospace';
-  ctx.fillText(`SKLEP GAMBITU & PROMOCJA FIGURY (FALA ${game.wave})`, px + 24, py + 36);
+  ctx.font = `bold ${isNarrow ? 15 : 20}px monospace`;
+  ctx.fillText(`SKLEP GAMBITU (FALA ${game.wave})`, px + 16, py + 34);
 
   // Licznik Czarnych Żetonów
-  drawGambitToken(ctx, px + panelW - 185, py + 29, 0, theme);
+  drawGambitToken(ctx, px + panelW - 190, py + 26, 0, theme);
   ctx.textAlign = 'right';
   ctx.fillStyle = theme.bulletPlayer;
-  ctx.font = 'bold 18px monospace';
-  ctx.fillText(`CZARNE ŻETONY: ${game.gambitTokens}`, px + panelW - 24, py + 35);
+  ctx.font = `bold ${isNarrow ? 13 : 17}px monospace`;
+  ctx.fillText(`ŻETONY: ${game.gambitTokens}`, px + panelW - 54, py + 32);
 
   // --- SEKCJA 1: DRZEWKO EWOLUCJI (PAWN PROMOTION) ---
   ctx.textAlign = 'left';
   ctx.fillStyle = theme.uiText;
-  ctx.font = 'bold 14px monospace';
+  ctx.font = `bold ${isNarrow ? 11 : 13}px monospace`;
   ctx.fillText(
-    '1. AWANS FIGURY SZACHOWEJ (PAWN PROMOTION — Klawisze [1]-[4] lub Kliknięcie):',
-    px + 24,
-    py + 70
+    '1. AWANS FIGURY (Klawisze [1]-[4] lub Kliknięcie):',
+    px + 16,
+    py + (isNarrow ? 56 : 64)
   );
 
-  const promoClasses = ['knight', 'bishop', 'rook', 'queen'];
-  const promoW = 196;
-  const promoH = 172;
-  const promoGap = 16;
-  const promoStartX = px + 24;
-  const promoY = py + 84;
-
-  for (let i = 0; i < promoClasses.length; i++) {
-    const cid = promoClasses[i];
+  for (let i = 0; i < promoCards.length; i++) {
+    const card = promoCards[i];
+    const cid = card.cid;
     const cData = PLAYER_CLASSES[cid];
-    const cx = promoStartX + i * (promoW + promoGap);
 
     const isCurrent = game.player.classId === cid;
     const canUnlockQueen = cid !== 'queen' || game.player.classId !== 'pawn';
     const canAfford = game.gambitTokens >= cData.cost && !isCurrent && canUnlockQueen;
 
     const isHover =
-      game.input.mouseX >= cx &&
-      game.input.mouseX <= cx + promoW &&
-      game.input.mouseY >= promoY &&
-      game.input.mouseY <= promoY + promoH;
+      game.input.mouseX >= card.x &&
+      game.input.mouseX <= card.x + card.w &&
+      game.input.mouseY >= card.y &&
+      game.input.mouseY <= card.y + card.h;
 
     ctx.fillStyle = isCurrent
       ? theme.tileDark
@@ -406,18 +490,18 @@ export function renderGambitShopOverlay(ctx, game, theme) {
       ? theme.uiAccent
       : 'rgba(255,255,255,0.22)';
     ctx.lineWidth = isCurrent || (isHover && canAfford) ? 2.5 : 1.5;
-    ctx.fillRect(cx, promoY, promoW, promoH);
-    ctx.strokeRect(cx, promoY, promoW, promoH);
+    ctx.fillRect(card.x, card.y, card.w, card.h);
+    ctx.strokeRect(card.x, card.y, card.w, card.h);
 
     // Sylwetka figury
     drawChessPiece(
       ctx,
       cid,
-      cx + 34,
-      promoY + 42,
+      card.x + (isNarrow ? 24 : 34),
+      card.y + (isNarrow ? 28 : 42),
       0,
-      1.05,
-      1.05,
+      isNarrow ? 0.8 : 1.05,
+      isNarrow ? 0.8 : 1.05,
       theme.playerFill,
       theme.playerOutline,
       0,
@@ -427,81 +511,70 @@ export function renderGambitShopOverlay(ctx, game, theme) {
 
     ctx.textAlign = 'left';
     ctx.fillStyle = theme.uiAccent;
-    ctx.font = 'bold 14px monospace';
-    ctx.fillText(`[${i + 1}] ${cData.name}`, cx + 66, promoY + 26);
+    ctx.font = `bold ${isNarrow ? 12 : 13}px monospace`;
+    ctx.fillText(`[${i + 1}] ${cData.name}`, card.x + (isNarrow ? 48 : 66), card.y + (isNarrow ? 22 : 26));
 
     ctx.fillStyle = isCurrent
       ? theme.bulletPlayer
       : canAfford
       ? '#55ff99'
       : theme.uiDanger;
-    ctx.font = 'bold 12px monospace';
+    ctx.font = `bold ${isNarrow ? 10 : 11}px monospace`;
     const statusTxt = isCurrent
-      ? 'AKTYWNA KLASA'
+      ? 'AKTYWNA'
       : !canUnlockQueen
-      ? 'WYMAGA TIER 2'
-      : `KOSZT: ${cData.cost} ŻET.`;
-    ctx.fillText(statusTxt, cx + 66, promoY + 46);
+      ? 'WYM. T2'
+      : `${cData.cost} ŻET.`;
+    ctx.fillText(statusTxt, card.x + (isNarrow ? 48 : 66), card.y + (isNarrow ? 38 : 46));
 
-    ctx.fillStyle = theme.uiText;
-    ctx.font = 'bold 10px monospace';
-    ctx.fillText(`Atak: ${cData.attackDesc.slice(0, 27)}`, cx + 10, promoY + 82);
-    ctx.fillStyle = theme.uiAccent;
-    ctx.fillText(`PPM: ${cData.abilityName}`, cx + 10, promoY + 102);
-    ctx.fillStyle = 'rgba(255,255,255,0.78)';
-    ctx.font = '10px monospace';
-    ctx.fillText(cData.abilityDesc.slice(0, 30), cx + 10, promoY + 120);
-    ctx.fillText(cData.passiveDesc.slice(0, 30), cx + 10, promoY + 138);
+    if (!isNarrow) {
+      ctx.fillStyle = theme.uiText;
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(`Atak: ${cData.attackDesc.slice(0, 27)}`, card.x + 10, card.y + 82);
+      ctx.fillStyle = theme.uiAccent;
+      ctx.fillText(`PPM: ${cData.abilityName}`, card.x + 10, card.y + 102);
+      ctx.fillStyle = 'rgba(255,255,255,0.78)';
+      ctx.font = '10px monospace';
+      ctx.fillText(cData.abilityDesc.slice(0, 30), card.x + 10, card.y + 120);
+      ctx.fillText(cData.passiveDesc.slice(0, 30), card.x + 10, card.y + 138);
+    }
 
     ctx.textAlign = 'center';
     ctx.fillStyle = canAfford ? theme.bulletPlayer : 'rgba(255,255,255,0.4)';
-    ctx.font = 'bold 11px monospace';
+    ctx.font = `bold ${isNarrow ? 9 : 11}px monospace`;
     ctx.fillText(
-      isCurrent ? '✓ WYBRANO' : canAfford ? '[ KLIKNIJ = AWANSUJ ]' : 'NIEDOSTĘPNE',
-      cx + promoW / 2,
-      promoY + 160
+      isCurrent ? '✓ WYBRANO' : canAfford ? '[ AWANSUJ ]' : 'BRAK ŻET.',
+      card.x + card.w / 2,
+      card.y + card.h - (isNarrow ? 8 : 10)
     );
   }
 
   // --- SEKCJA 2: PERKI PASYWNE & ZDOLNOŚCI AKTYWNE POD [E] ---
   ctx.textAlign = 'left';
   ctx.fillStyle = theme.uiText;
-  ctx.font = 'bold 14px monospace';
+  ctx.font = `bold ${isNarrow ? 11 : 13}px monospace`;
   ctx.fillText(
-    '2. PERKI PASYWNE & GAMBITY AKTYWNE POD [E] (Kliknij kartę, aby kupić):',
-    px + 24,
-    py + 282
+    '2. PERKI & GAMBITY (Kliknij kartę, aby kupić):',
+    px + 16,
+    promoCards[0].y + (isNarrow ? 2 : 1) * (promoCards[0].h + (isNarrow ? 10 : 16)) + (isNarrow ? 14 : 26)
   );
 
-  const itemCols = 4;
-  const itemW = 196;
-  const itemH = 114;
-  const itemGapX = 16;
-  const itemGapY = 14;
-  const itemStartX = px + 24;
-  const itemStartY = py + 296;
-
   // 7 przedmiotów ze specyfikacji + 8. karta: Naprawa Figury (+2 HP)
-  for (let i = 0; i < 8; i++) {
-    const col = i % itemCols;
-    const row = Math.floor(i / itemCols);
-    const ix = itemStartX + col * (itemW + itemGapX);
-    const iy = itemStartY + row * (itemH + itemGapY);
-
+  for (let i = 0; i < itemCards.length; i++) {
+    const card = itemCards[i];
     const isHover =
-      game.input.mouseX >= ix &&
-      game.input.mouseX <= ix + itemW &&
-      game.input.mouseY >= iy &&
-      game.input.mouseY <= iy + itemH;
+      game.input.mouseX >= card.x &&
+      game.input.mouseX <= card.x + card.w &&
+      game.input.mouseY >= card.y &&
+      game.input.mouseY <= card.y + card.h;
 
-    if (i < GAMBIT_SHOP_ITEMS.length) {
-      const item = GAMBIT_SHOP_ITEMS[i];
+    if (card.index < GAMBIT_SHOP_ITEMS.length) {
+      const item = GAMBIT_SHOP_ITEMS[card.index];
       const currentLvl = game.perks[item.id] || 0;
       const isActiveType = item.type === 'active';
       const isEquippedActive = isActiveType && game.activeAbilityId === item.id;
       const isMaxed = !isActiveType && currentLvl >= item.maxLevel;
-      const canBuy =
-        game.gambitTokens >= item.cost && !isMaxed && !isEquippedActive;
+      const canBuy = game.gambitTokens >= item.cost && !isMaxed && !isEquippedActive;
 
       ctx.fillStyle = isEquippedActive || isMaxed
         ? theme.tileDark
@@ -514,38 +587,37 @@ export function renderGambitShopOverlay(ctx, game, theme) {
         ? theme.uiAccent
         : 'rgba(255,255,255,0.22)';
       ctx.lineWidth = isHover && canBuy ? 2.5 : 1.5;
-      ctx.fillRect(ix, iy, itemW, itemH);
-      ctx.strokeRect(ix, iy, itemW, itemH);
+      ctx.fillRect(card.x, card.y, card.w, card.h);
+      ctx.strokeRect(card.x, card.y, card.w, card.h);
 
       ctx.textAlign = 'left';
       ctx.fillStyle = isActiveType ? '#55ff99' : theme.uiAccent;
-      ctx.font = 'bold 12px monospace';
-      ctx.fillText(item.name, ix + 10, iy + 20);
+      ctx.font = `bold ${isNarrow ? 11 : 12}px monospace`;
+      ctx.fillText(item.name.slice(0, isNarrow ? 20 : 25), card.x + 8, card.y + (isNarrow ? 16 : 20));
 
       ctx.fillStyle = canBuy ? '#55ff99' : theme.uiDanger;
-      ctx.font = 'bold 11px monospace';
+      ctx.font = `bold ${isNarrow ? 10 : 11}px monospace`;
       const costLabel = isEquippedActive
         ? 'AKTYWNY [E]'
         : isMaxed
-        ? `MAKS (${currentLvl}/${item.maxLevel})`
-        : isActiveType
-        ? `KOSZT: ${item.cost} ŻET. [AKTYWNY]`
-        : `KOSZT: ${item.cost} ŻET. (POZ. ${currentLvl}/${item.maxLevel})`;
-      ctx.fillText(costLabel, ix + 10, iy + 38);
+        ? `MAKS (${currentLvl})`
+        : `${item.cost} ŻET. ${isActiveType ? '[E]' : `(${currentLvl}/${item.maxLevel})`}`;
+      ctx.fillText(costLabel, card.x + 8, card.y + (isNarrow ? 32 : 36));
 
-      // Opis w 2 wierszach
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.font = '10px monospace';
-      ctx.fillText(item.desc.slice(0, 31), ix + 10, iy + 62);
-      ctx.fillText(item.desc.slice(31, 62), ix + 10, iy + 78);
+      if (!isNarrow) {
+        ctx.fillStyle = 'rgba(255,255,255,0.82)';
+        ctx.font = '10px monospace';
+        ctx.fillText(item.desc.slice(0, 31), card.x + 8, card.y + 58);
+        ctx.fillText(item.desc.slice(31, 62), card.x + 8, card.y + 74);
+      }
 
       ctx.textAlign = 'center';
       ctx.fillStyle = canBuy ? theme.bulletPlayer : 'rgba(255,255,255,0.4)';
-      ctx.font = 'bold 11px monospace';
+      ctx.font = `bold ${isNarrow ? 9 : 11}px monospace`;
       ctx.fillText(
         isEquippedActive || isMaxed ? '✓ POSIADANE' : canBuy ? '[ KUP TERAZ ]' : 'ZA DROGO',
-        ix + itemW / 2,
-        iy + 102
+        card.x + card.w / 2,
+        card.y + card.h - (isNarrow ? 6 : 10)
       );
     } else {
       // Karta #8: Rekonstrukcja Drewna (Leczenie +2 HP)
@@ -556,53 +628,49 @@ export function renderGambitShopOverlay(ctx, game, theme) {
       ctx.fillStyle = isHover && canHeal ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.45)';
       ctx.strokeStyle = canHeal ? '#55ff99' : 'rgba(255,255,255,0.22)';
       ctx.lineWidth = isHover && canHeal ? 2.5 : 1.5;
-      ctx.fillRect(ix, iy, itemW, itemH);
-      ctx.strokeRect(ix, iy, itemW, itemH);
+      ctx.fillRect(card.x, card.y, card.w, card.h);
+      ctx.strokeRect(card.x, card.y, card.w, card.h);
 
       ctx.textAlign = 'left';
       ctx.fillStyle = '#55ff99';
-      ctx.font = 'bold 12px monospace';
-      ctx.fillText('Rekonstrukcja (+2 HP)', ix + 10, iy + 20);
+      ctx.font = `bold ${isNarrow ? 11 : 12}px monospace`;
+      ctx.fillText('Naprawa (+2 HP)', card.x + 8, card.y + (isNarrow ? 16 : 20));
 
       ctx.fillStyle = canHeal ? '#55ff99' : theme.uiDanger;
-      ctx.font = 'bold 11px monospace';
+      ctx.font = `bold ${isNarrow ? 10 : 11}px monospace`;
       ctx.fillText(
-        needsHeal ? `KOSZT: ${healCost} ŻET. (HP ${game.player.hp}/${game.player.maxHp})` : 'PEŁNE ZDROWIE',
-        ix + 10,
-        iy + 38
+        needsHeal ? `${healCost} ŻET. (${game.player.hp}/${game.player.maxHp} HP)` : 'PEŁNE ZDROWIE',
+        card.x + 8,
+        card.y + (isNarrow ? 32 : 36)
       );
-
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.font = '10px monospace';
-      ctx.fillText('Skleja pęknięcia figury i', ix + 10, iy + 62);
-      ctx.fillText('przywraca 2 punkty życia.', ix + 10, iy + 78);
 
       ctx.textAlign = 'center';
       ctx.fillStyle = canHeal ? theme.bulletPlayer : 'rgba(255,255,255,0.4)';
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText(canHeal ? '[ NAPRAW FIGURĘ ]' : 'NIEDOSTĘPNE', ix + itemW / 2, iy + 102);
+      ctx.font = `bold ${isNarrow ? 9 : 11}px monospace`;
+      ctx.fillText(canHeal ? '[ NAPRAW ]' : 'NIEDOSTĘPNE', card.x + card.w / 2, card.y + card.h - (isNarrow ? 6 : 10));
     }
   }
 
-  // Przycisk kontynuacji do następnej fali na dole okna
-  const btnW = 460;
-  const btnH = 44;
-  const bx = (game.width - btnW) / 2;
-  const by = py + panelH - 58;
+  // Przycisk powrotu na dole
+  const isReturnHover =
+    game.input.mouseX >= returnBtn.x &&
+    game.input.mouseX <= returnBtn.x + returnBtn.w &&
+    game.input.mouseY >= returnBtn.y &&
+    game.input.mouseY <= returnBtn.y + returnBtn.h;
 
-  ctx.fillStyle = theme.tileDark;
+  ctx.fillStyle = isReturnHover ? theme.tileDark : 'rgba(10, 10, 18, 0.7)';
   ctx.strokeStyle = theme.bulletPlayer;
   ctx.lineWidth = 2.5;
-  ctx.fillRect(bx, by, btnW, btnH);
-  ctx.strokeRect(bx, by, btnW, btnH);
+  ctx.fillRect(returnBtn.x, returnBtn.y, returnBtn.w, returnBtn.h);
+  ctx.strokeRect(returnBtn.x, returnBtn.y, returnBtn.w, returnBtn.h);
 
   ctx.textAlign = 'center';
   ctx.fillStyle = theme.bulletPlayer;
-  ctx.font = 'bold 15px monospace';
+  ctx.font = `bold ${isNarrow ? 12 : 14}px monospace`;
   ctx.fillText(
-    '▶ [SPACJA / TAB / KLIKNIJ] WRÓĆ NA SZACHOWNICĘ ◀',
-    game.width / 2,
-    by + 27
+    '▶ [SPACJA / ENTER / KLIKNIJ] WRÓĆ NA SZACHOWNICĘ ◀',
+    returnBtn.x + returnBtn.w / 2,
+    returnBtn.y + returnBtn.h / 2 + 5
   );
 
   ctx.restore();

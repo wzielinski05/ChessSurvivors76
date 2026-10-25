@@ -28,6 +28,7 @@ import {
 import {
   renderGameHUD,
   renderTempoSelectOverlay,
+  getGambitShopLayout,
   renderGambitShopOverlay,
   renderBlurOverlay,
   renderGameOverOverlay,
@@ -776,6 +777,7 @@ export class Game {
 
   _handleGambitShopInput() {
     if (
+      this.input.consumeJustPressed('Escape') ||
       this.input.consumeJustPressed('Space') ||
       this.input.consumeJustPressed('Tab') ||
       this.input.consumeJustPressed('Enter')
@@ -796,54 +798,49 @@ export class Game {
     }
 
     if (this.input.consumeLeftClick()) {
-      const panelW = 880;
-      const panelH = 620;
-      const px = (this.width - panelW) / 2;
-      const py = (this.height - panelH) / 2;
+      const layout = getGambitShopLayout(this.width, this.height);
+      const mx = this.input.mouseX;
+      const my = this.input.mouseY;
 
-      // 1. Kliknięcie kart promocji figury
-      const promoW = 196;
-      const promoH = 172;
-      const promoGap = 16;
-      const promoStartX = px + 24;
-      const promoY = py + 84;
+      // 1. Zamknięcie przez [X] w prawym górnym rogu
+      if (
+        mx >= layout.closeBtn.x &&
+        mx <= layout.closeBtn.x + layout.closeBtn.w &&
+        my >= layout.closeBtn.y &&
+        my <= layout.closeBtn.y + layout.closeBtn.h
+      ) {
+        this.state = 'PLAYING';
+        this.spawnBossForCurrentWave();
+        AudioEngine.playClockClick();
+        return;
+      }
 
-      for (let i = 0; i < promoClasses.length; i++) {
-        const cx = promoStartX + i * (promoW + promoGap);
+      // 2. Kliknięcie kart promocji figury
+      for (let i = 0; i < layout.promoCards.length; i++) {
+        const card = layout.promoCards[i];
         if (
-          this.input.mouseX >= cx &&
-          this.input.mouseX <= cx + promoW &&
-          this.input.mouseY >= promoY &&
-          this.input.mouseY <= promoY + promoH
+          mx >= card.x &&
+          mx <= card.x + card.w &&
+          my >= card.y &&
+          my <= card.y + card.h
         ) {
-          this.promotePlayerClass(promoClasses[i]);
+          this.promotePlayerClass(card.cid);
           return;
         }
       }
 
-      // 2. Kliknięcie kart perków i zdolności aktywnych
-      const itemCols = 4;
-      const itemW = 196;
-      const itemH = 114;
-      const itemGapX = 16;
-      const itemGapY = 14;
-      const itemStartX = px + 24;
-      const itemStartY = py + 296;
-
-      for (let i = 0; i < 8; i++) {
-        const col = i % itemCols;
-        const row = Math.floor(i / itemCols);
-        const ix = itemStartX + col * (itemW + itemGapX);
-        const iy = itemStartY + row * (itemH + itemGapY);
-
+      // 3. Kliknięcie kart perków i zdolności aktywnych
+      for (let i = 0; i < layout.itemCards.length; i++) {
+        const card = layout.itemCards[i];
         if (
-          this.input.mouseX >= ix &&
-          this.input.mouseX <= ix + itemW &&
-          this.input.mouseY >= iy &&
-          this.input.mouseY <= iy + itemH
+          mx >= card.x &&
+          mx <= card.x + card.w &&
+          my >= card.y &&
+          my <= card.y + card.h
         ) {
-          if (i < GAMBIT_SHOP_ITEMS.length) {
-            this.buyGambitItem(GAMBIT_SHOP_ITEMS[i]);
+          const idx = card.index;
+          if (idx < GAMBIT_SHOP_ITEMS.length) {
+            this.buyGambitItem(GAMBIT_SHOP_ITEMS[idx]);
           } else {
             // Karta #8: Rekonstrukcja (+2 HP za 4 żetony)
             if (this.gambitTokens >= 4 && this.player.hp < this.player.maxHp) {
@@ -856,20 +853,30 @@ export class Game {
         }
       }
 
-      // 3. Przycisk powrotu na szachownicę na dole modala
-      const btnW = 460;
-      const btnH = 44;
-      const bx = (this.width - btnW) / 2;
-      const by = py + panelH - 58;
+      // 4. Przycisk powrotu na szachownicę na dole modala
       if (
-        this.input.mouseX >= bx &&
-        this.input.mouseX <= bx + btnW &&
-        this.input.mouseY >= by &&
-        this.input.mouseY <= by + btnH
+        mx >= layout.returnBtn.x &&
+        mx <= layout.returnBtn.x + layout.returnBtn.w &&
+        my >= layout.returnBtn.y &&
+        my <= layout.returnBtn.y + layout.returnBtn.h
       ) {
         this.state = 'PLAYING';
         this.spawnBossForCurrentWave();
         AudioEngine.playClockClick();
+        return;
+      }
+
+      // 5. Kliknięcie poza panelem modala (zamknięcie tła) - SHOP-05
+      if (
+        mx < layout.panel.x ||
+        mx > layout.panel.x + layout.panel.w ||
+        my < layout.panel.y ||
+        my > layout.panel.y + layout.panel.h
+      ) {
+        this.state = 'PLAYING';
+        this.spawnBossForCurrentWave();
+        AudioEngine.playClockClick();
+        return;
       }
     }
   }

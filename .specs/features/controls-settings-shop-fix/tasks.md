@@ -90,9 +90,9 @@ T5 -> T6
 - Skill: NONE
 
 **Done when**:
-- [ ] All 8 perk cards and 4 class promotion cards are clickable and buyable
-- [ ] Shop modal fits within window width on mobile portrait with visible [X] button
-- [ ] Gate check passes: `npm run build`
+- [x] All 8 perk cards and 4 class promotion cards are clickable and buyable
+- [x] Shop modal fits within window width on mobile portrait with visible [X] button
+- [x] Gate check passes: `npm run build`
 
 **Tests**: unit
 **Gate**: quick
