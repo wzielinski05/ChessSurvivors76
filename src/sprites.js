@@ -725,3 +725,44 @@ export function drawTouchControls(ctx, input, theme, player, activeAbilityCooldo
   ctx.restore();
 }
 
+// Wskaźnik zablokowanego celu wroga (TOUCH-04: Touch Focus)
+export function drawLockOnTarget(ctx, x, y, radius, time, theme) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const rot = time * 2.5;
+  ctx.rotate(rot);
+
+  const r = radius + 8 + Math.sin(time * 8) * 2;
+  ctx.strokeStyle = '#ff3344';
+  ctx.lineWidth = 2;
+
+  // 4 narożniki celownika lock-on
+  const arm = 6;
+  for (let i = 0; i < 4; i++) {
+    ctx.save();
+    ctx.rotate((i * Math.PI) / 2);
+    ctx.beginPath();
+    ctx.moveTo(r - arm, -r);
+    ctx.lineTo(r, -r);
+    ctx.lineTo(r, -r + arm);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Wewnętrzny obrócony romb
+  ctx.strokeStyle = theme.uiAccent;
+  ctx.lineWidth = 1;
+  ctx.rotate(-rot * 2);
+  const diamondR = radius + 3;
+  ctx.beginPath();
+  ctx.moveTo(diamondR, 0);
+  ctx.lineTo(0, diamondR);
+  ctx.lineTo(-diamondR, 0);
+  ctx.lineTo(0, -diamondR);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.restore();
+}
+

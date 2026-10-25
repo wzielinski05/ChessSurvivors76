@@ -22,7 +22,8 @@ import {
   drawGambitToken,
   drawCrosshair,
   drawFauxGlow,
-  drawTouchControls
+  drawTouchControls,
+  drawLockOnTarget
 } from './sprites.js';
 import {
   renderGameHUD,
@@ -65,6 +66,9 @@ export class Game {
     // Maszyna Stanów: 'SELECT_TEMPO' | 'PLAYING' | 'GAMBIT_SHOP' | 'GAME_OVER' | 'VICTORY'
     this.state = 'SELECT_TEMPO';
     this.autoFire = false;
+    this.lockedTarget = null;
+    this.aimMode = 'hybrid'; // 'hybrid' | 'twinstick' (TOUCH-03, TOUCH-05)
+    this.lastAimAngle = 0;
 
     this.player = {
       classId: 'pawn', // 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen'
@@ -246,6 +250,7 @@ export class Game {
     this.waveTimer = 0;
     this.trauma = 0;
     this.hitstopTimer = 0;
+    this.lockedTarget = null;
     this.state = initialState;
 
     // Spawnowanie pierwszych wrogów na otwarcie partii
@@ -940,6 +945,39 @@ export class Game {
       return;
     }
 
+    // Obsługa dotknięcia wroga w celu zablokowania namierzania (TOUCH-04: Touch Focus)
+    if (this.state === 'PLAYING' && this.input.consumeTap) {
+      const tap = this.input.consumeTap();
+      if (tap) {
+        const enemies = this.pools.enemies.items;
+        const size = this.pools.enemies.size;
+        let tappedEnemy = null;
+        let minTDist = Infinity;
+        for (let i = 0; i < size; i++) {
+          const e = enemies[i];
+          if (!e.active || e.hp <= 0) continue;
+          const dist = Math.hypot(e.x - tap.x, e.y - tap.y);
+          if (dist <= e.radius + 22 && dist < minTDist) {
+            minTDist = dist;
+            tappedEnemy = e;
+          }
+        }
+
+        if (tappedEnemy) {
+          this.lockedTarget = this.lockedTarget === tappedEnemy ? null : tappedEnemy;
+          if (this.lockedTarget) {
+            this.spawnFloatingText('CEL!', tappedEnemy.x, tappedEnemy.y - 20, '#ff4455', 0.6);
+          }
+        } else {
+          // Tapnięcie w puste pole planszy usuwa blokadę celu
+          const bounds = this.board.getBounds();
+          if (tap.x >= bounds.left && tap.x <= bounds.right && tap.y >= bounds.top && tap.y <= bounds.bottom) {
+            this.lockedTarget = null;
+          }
+        }
+      }
+    }
+
     this.time += dt;
 
     // Podczas walki z aktywnym Bossem licznik końca fali czeka na zbicie Bossa
@@ -1121,8 +1159,11 @@ export class Game {
     p.x = clamp(p.x, bounds.left + margin, bounds.right - margin);
     p.y = clamp(p.y, bounds.top + margin, bounds.bottom - margin);
 
-    // Strzał główny (LPM lub Auto-Fire)
-    if ((this.input.mouseDownLeft || this.autoFire) && p.fireCooldown <= 0) {
+    // Strzał główny (LPM, Auto-Fire lub Auto-Aim na urządzeniach dotykowych)
+    const isTouchShooting =
+      (this.input.touchActive || this.input.isTouchDevice) &&
+      (this.aimMode !== 'twinstick' || (this.input.rightStick && this.input.rightStick.active));
+    if ((this.input.mouseDownLeft || this.autoFire || isTouchShooting) && p.fireCooldown <= 0) {
       this._firePlayerWeapon();
     }
   }
@@ -1350,11 +1391,69 @@ export class Game {
     }
   }
 
+  _getAimAngle() {
+    const p = this.player;
+
+    // 1. Opcjonalny Twin-Stick Touch (TOUCH-05)
+    if (this.aimMode === 'twinstick' && this.input.rightStick && this.input.rightStick.active) {
+      this.lastAimAngle = this.input.rightStick.angle;
+      return this.lastAimAngle;
+    }
+
+    // 2. Cel zablokowany przez tapnięcie / touch-focus (TOUCH-04)
+    if (this.lockedTarget) {
+      if (this.lockedTarget.active && this.lockedTarget.hp > 0) {
+        this.lastAimAngle = Math.atan2(this.lockedTarget.y - p.y, this.lockedTarget.x - p.x);
+        return this.lastAimAngle;
+      }
+      this.lockedTarget = null;
+    }
+
+    // 3. Auto-Aim na urządzeniach dotykowych lub przy aktywnym dotyku (TOUCH-03)
+    if (this.input.isTouchDevice || this.input.touchActive) {
+      let nearest = null;
+      let minDistSq = Infinity;
+      const enemies = this.pools.enemies.items;
+      const size = this.pools.enemies.size;
+      const px = p.x;
+      const py = p.y;
+
+      for (let i = 0; i < size; i++) {
+        const e = enemies[i];
+        if (!e.active || e.hp <= 0) continue;
+        const dx = e.x - px;
+        const dy = e.y - py;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < minDistSq) {
+          minDistSq = dSq;
+          nearest = e;
+        }
+      }
+
+      if (nearest) {
+        this.lastAimAngle = Math.atan2(nearest.y - py, nearest.x - px);
+        return this.lastAimAngle;
+      }
+
+      // W razie braku wrogów, celujemy w kierunku poruszania się
+      const move = this.input.getMoveVector();
+      if (move.x !== 0 || move.y !== 0) {
+        this.lastAimAngle = Math.atan2(move.y, move.x);
+        return this.lastAimAngle;
+      }
+
+      return this.lastAimAngle || 0;
+    }
+
+    // 4. Standardowe celowanie kursorem myszy na desktopie
+    return Math.atan2(this.input.mouseY - p.y, this.input.mouseX - p.x);
+  }
+
   _firePlayerWeapon() {
     const p = this.player;
     p.fireCooldown = p.fireRate;
 
-    const angle = Math.atan2(this.input.mouseY - p.y, this.input.mouseX - p.x);
+    const angle = this._getAimAngle();
     const muzzleX = p.x + Math.cos(angle) * 14;
     const muzzleY = p.y - 6 + Math.sin(angle) * 14;
 
@@ -2834,7 +2933,7 @@ export class Game {
     const p = this.player;
     const enemies = this.pools.enemies.items;
     const eSize = this.pools.enemies.size;
-    const aimAngle = Math.atan2(this.input.mouseY - p.y, this.input.mouseX - p.x);
+    const aimAngle = this._getAimAngle();
 
     // 1. Klon Roszady na przeciwległym narożniku szachownicy (jeśli wykupiono Roszadę)
     if (this.activeAbilityId === 'castling') {
@@ -2898,6 +2997,18 @@ export class Game {
         ctx.stroke();
         ctx.restore();
       }
+    }
+
+    // Wskaźnik zablokowanego celu wroga (TOUCH-04: Touch Focus)
+    if (this.lockedTarget && this.lockedTarget.active && this.lockedTarget.hp > 0) {
+      drawLockOnTarget(
+        ctx,
+        this.lockedTarget.x,
+        this.lockedTarget.y,
+        this.lockedTarget.radius,
+        this.time,
+        theme
+      );
     }
 
     // 2B. Tarcza 4 orbitujących Pionków wokół Czarnego Króla (Mini-Boss)

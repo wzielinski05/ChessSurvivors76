@@ -46,6 +46,7 @@ export class InputManager {
     this.touchDashPressed = false;
     this.touchPerkPressed = false;
     this.touchShopPressed = false;
+    this.lastTap = null;
 
     this.hasFocus = document.hasFocus ? document.hasFocus() : true;
     this.onBlurCallback = null;
@@ -102,7 +103,11 @@ export class InputManager {
       this.joystick.vx = 0;
       this.joystick.vy = 0;
       pointer.consumed = true;
+      return;
     }
+
+    // 3. Rejestracja pojedynczego tapnięcia / kliknięcia do blokowania celu wroga (TOUCH-04)
+    this.lastTap = { x: pointer.x, y: pointer.y, consumed: false };
   }
 
   _handlePointerMove(pointer) {
@@ -345,6 +350,14 @@ export class InputManager {
     return false;
   }
 
+  consumeTap() {
+    if (this.lastTap && !this.lastTap.consumed) {
+      this.lastTap.consumed = true;
+      return { x: this.lastTap.x, y: this.lastTap.y };
+    }
+    return null;
+  }
+
   endFrame() {
     for (const k in this.justPressed) {
       this.justPressed[k] = false;
@@ -354,6 +367,9 @@ export class InputManager {
     this.touchDashPressed = false;
     this.touchPerkPressed = false;
     this.touchShopPressed = false;
+    if (this.lastTap) {
+      this.lastTap.consumed = true;
+    }
   }
 
   // Zwraca znormalizowany wektor ruchu 360° (Klawiatura WSAD/Strzałki lub Wirtualny Joystick Dotykowy)

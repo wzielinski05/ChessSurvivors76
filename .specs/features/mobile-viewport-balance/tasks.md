@@ -220,9 +220,9 @@ T10 -> T11 -> T12
 - Skill: NONE
 
 **Done when**:
-- [ ] Player weapon aims at nearest enemy when touch input is active
-- [ ] Tapping an enemy locks crosshair onto it as priority target
-- [ ] Gate check passes: `python3 scripts/bundle-singlefile.py`
+- [x] Player weapon aims at nearest enemy when touch input is active
+- [x] Tapping an enemy locks crosshair onto it as priority target
+- [x] Gate check passes: `python3 scripts/bundle-singlefile.py`
 
 **Tests**: unit
 **Gate**: quick
