@@ -61,13 +61,19 @@
 ## Handoff
 
 - **Feature**: chess-fusions-evolutions / .specs/features/chess-fusions-evolutions/tasks.md
-- **Phase / Task**: Tasks / Przygotowano spec.md, design.md i tasks.md (gotowe do zatwierdzenia / wykonania)
+- **Phase / Task**: Verified & Complete (T1..T10 ukończone, audyt niezależnego weryfikatora: PASS)
 - **Completed**:
   - Walidacja formalna specyfikacji (validate_spec: 0 errors, 0 warnings)
   - Walidacja formalna zadań (validate_tasks: 0 errors, 0 warnings)
-- **In-progress** (file:line): `.specs/features/chess-fusions-evolutions/tasks.md`
-- **Next step**: Faza 1 (T1: Definicje klas fuzji i receptur w chessData.js)
+  - Faza 1: Fuzja klas i reset stanu gracza (T1, T2: `9acb8ec`, `774466f`)
+  - Faza 2: Cesarka (Empress / Chancellor) - Kanonada oblężnicza, Taranujący Skok, Bastion (T3, T4: `f91c97a`, `18223ca`)
+  - Faza 3: Kardynał (Cardinal / Archbishop) - Schodkowe lasery L, Błysk Translokacyjny, Aura Katedry (T5, T6: `aa85b75`, `b6cd427`)
+  - Faza 4: Amazonka (Amazon) - 8-kierunkowa salwa chaosu, Władza Absolutna, Cesarski Mat (T7, T8: `014c2dc`, `445cfc3`)
+  - Faza 5: Proceduralne wektory Fairy Chess & Karty Fuzji w Sklepie Gambitu (T9, T10: `dd28086`, `d662a59`)
+  - Niezależny audyt weryfikatora: `.specs/features/chess-fusions-evolutions/validation.md` (**Result**: PASS)
+- **In-progress** (file:line): Zakończono Krok 2
+- **Next step**: Gotowość do przejścia do Kroku 3 (Domain 3 / Domain 4 z planu rozwoju)
 - **Blockers**: none
-- **Uncommitted files**: `.specs/features/chess-fusions-evolutions/`
+- **Uncommitted files**: none
 - **Branch**: main
 

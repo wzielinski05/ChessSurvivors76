@@ -81,16 +81,16 @@ so that my character looks majestic and readable without performance drops.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| FUS-01 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-02 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-03 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-04 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-05 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-06 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-07 | P1: Fairy Chess Hybrids | Design | pending |
-| FUS-08 | P2: Najwyższy Archetyp | Design | pending |
-| FUS-09 | P2: Najwyższy Archetyp | Design | pending |
-| FUS-10 | P2: Najwyższy Archetyp | Design | pending |
-| FUS-11 | P3: Procedural Fairy Sprites | Design | pending |
+| FUS-01 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-02 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-03 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-04 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-05 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-06 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-07 | P1: Fairy Chess Hybrids | Complete | verified |
+| FUS-08 | P2: Najwyższy Archetyp | Complete | verified |
+| FUS-09 | P2: Najwyższy Archetyp | Complete | verified |
+| FUS-10 | P2: Najwyższy Archetyp | Complete | verified |
+| FUS-11 | P3: Procedural Fairy Sprites | Complete | verified |
 
 **Coverage:** 11 total, 11 mapped to design, 0 unmapped
