@@ -40,6 +40,21 @@ import {
   renderVictoryOverlay
 } from './uiRenderer.js';
 
+// Pre-alokowane tablice wektorów dla Zero-GC w pętli 60 FPS
+const DIAGONAL_DIRS = [
+  [0.7071, 0.7071],
+  [-0.7071, 0.7071],
+  [0.7071, -0.7071],
+  [-0.7071, -0.7071]
+];
+
+const CANNON_SHRAPNEL_ANGLES = [
+  Math.PI * 0.25,
+  Math.PI * 0.75,
+  Math.PI * 1.25,
+  Math.PI * 1.75
+];
+
 export class Game {
   constructor(canvas, input) {
     this.canvas = canvas;
@@ -2039,18 +2054,11 @@ export class Game {
     this.triggerHitstop(0.045);
     this.spawnFloatingText('DIAGONAL CLEAVE!', ox, oy - 28, this.theme.bulletPlayer, 1.2);
 
-    const dirs = [
-      [0.7071, 0.7071],
-      [-0.7071, 0.7071],
-      [0.7071, -0.7071],
-      [-0.7071, -0.7071]
-    ];
-
     const enemies = this.pools.enemies.items;
     const bullets = this.pools.bullets.items;
 
     for (let d = 0; d < 4; d++) {
-      const exit = rayBoxExitPoint(ox, oy, dirs[d][0], dirs[d][1], bounds);
+      const exit = rayBoxExitPoint(ox, oy, DIAGONAL_DIRS[d][0], DIAGONAL_DIRS[d][1], bounds);
       this.spawnLaserBeam(ox, oy, exit.x, exit.y, false, 10, this.theme.bulletPlayer, 0.32);
 
       // Kolizja ciągła promienia z wrogami (Bottleneck #4 Fix)
@@ -2059,7 +2067,7 @@ export class Game {
         if (!e.active) continue;
         const hitR = e.radius + 10;
         if (distToSegmentSq(e.x, e.y, ox, oy, exit.x, exit.y) <= hitR * hitR) {
-          this.damageEnemy(e, 3.0, dirs[d][0] * 300, dirs[d][1] * 300, true, true);
+          this.damageEnemy(e, 3.0, DIAGONAL_DIRS[d][0] * 300, DIAGONAL_DIRS[d][1] * 300, true, true);
         }
       }
 
@@ -2077,19 +2085,13 @@ export class Game {
 
   // Rozbłysk Krzyża Apostolskiego Kardynała po przekątnych (FUS-06)
   _fireXCrossLasers(ox, oy, bounds) {
-    const dirs = [
-      [0.7071, 0.7071],
-      [-0.7071, 0.7071],
-      [0.7071, -0.7071],
-      [-0.7071, -0.7071]
-    ];
     const enemies = this.pools.enemies.items;
     const bullets = this.pools.bullets.items;
     const range = 200;
 
     for (let d = 0; d < 4; d++) {
-      const tx = clamp(ox + dirs[d][0] * range, bounds.left + 12, bounds.right - 12);
-      const ty = clamp(oy + dirs[d][1] * range, bounds.top + 12, bounds.bottom - 12);
+      const tx = clamp(ox + DIAGONAL_DIRS[d][0] * range, bounds.left + 12, bounds.right - 12);
+      const ty = clamp(oy + DIAGONAL_DIRS[d][1] * range, bounds.top + 12, bounds.bottom - 12);
       this.spawnLaserBeam(ox, oy, tx, ty, false, 10, '#55ffdd', 0.28);
 
       for (let i = 0; i < this.pools.enemies.size; i++) {
@@ -2097,7 +2099,7 @@ export class Game {
         if (!e.active) continue;
         const hitR = e.radius + 10;
         if (distToSegmentSq(e.x, e.y, ox, oy, tx, ty) <= hitR * hitR) {
-          this.damageEnemy(e, 4.0, dirs[d][0] * 350, dirs[d][1] * 350, true, true);
+          this.damageEnemy(e, 4.0, DIAGONAL_DIRS[d][0] * 350, DIAGONAL_DIRS[d][1] * 350, true, true);
         }
       }
 
@@ -3504,9 +3506,8 @@ export class Game {
     AudioEngine.playKnightSlam();
     this.addTrauma(0.22);
     const spd = 600;
-    const angles = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
     for (let i = 0; i < 4; i++) {
-      const a = angles[i];
+      const a = CANNON_SHRAPNEL_ANGLES[i];
       const shard = this.spawnBullet(
         x,
         y,
