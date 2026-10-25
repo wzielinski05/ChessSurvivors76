@@ -2106,7 +2106,8 @@ export class Game {
     const dx = p.x - e.x;
     const dy = p.y - e.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const moveScale = e.pinnedTimer > 0 ? 0 : 1;
+    const mateSlow = e.mateStep === 2 ? 0.5 : 1.0;
+    const moveScale = e.pinnedTimer > 0 ? 0 : mateSlow;
 
     if (e.state === 'chase') {
       e.x += (dx / dist) * e.speed * panicMult * moveScale * dt;
@@ -2137,7 +2138,7 @@ export class Game {
         e.scaleY = 0.8;
       }
     } else if (e.state === 'telegraph') {
-      e.stateTimer -= dt;
+      e.stateTimer -= dt * (e.mateStep === 1 ? 0.7 : 1.0);
       if (e.stateTimer <= 0) {
         e.state = 'attack';
         e.stateTimer = 0.24;
@@ -2166,7 +2167,8 @@ export class Game {
   _updateBlackKnight(e, dt, panicMult, bounds) {
     const p = this.player;
     const tile = this.board.tileSize;
-    const moveScale = e.pinnedTimer > 0 ? 0 : 1;
+    const mateSlow = e.mateStep === 2 ? 0.5 : 1.0;
+    const moveScale = e.pinnedTimer > 0 ? 0 : mateSlow;
 
     if (e.state === 'chase') {
       const dx = p.x - e.x;
@@ -2193,7 +2195,7 @@ export class Game {
         AudioEngine.playTelegraphWarn();
       }
     } else if (e.state === 'telegraph') {
-      e.stateTimer -= dt;
+      e.stateTimer -= dt * (e.mateStep === 1 ? 0.7 : 1.0);
       e.scaleX = 1.22;
       e.scaleY = 0.76;
       if (e.stateTimer <= 0) {
@@ -2242,7 +2244,8 @@ export class Game {
   // 3. Czarny Goniec (Spec 4.3: Snajper Przekątnych — ustawia się w narożnikach i ładuje laser diagonalny)
   _updateBlackBishop(e, dt, panicMult, bounds) {
     const p = this.player;
-    const moveScale = e.pinnedTimer > 0 ? 0 : 1;
+    const mateSlow = e.mateStep === 2 ? 0.5 : 1.0;
+    const moveScale = e.pinnedTimer > 0 ? 0 : mateSlow;
 
     if (e.state === 'chase') {
       const cornerX = e.x < bounds.left + bounds.size / 2 ? bounds.left + 44 : bounds.right - 44;
@@ -2270,7 +2273,7 @@ export class Game {
         AudioEngine.playTelegraphWarn();
       }
     } else if (e.state === 'telegraph') {
-      e.stateTimer -= dt;
+      e.stateTimer -= dt * (e.mateStep === 1 ? 0.7 : 1.0);
       e.scaleX = 0.88;
       e.scaleY = 1.18;
       if (e.stateTimer <= 0) {
@@ -2314,7 +2317,8 @@ export class Game {
   // 4. Czarna Wieża (Spec 4.4: Niezniszczalna od frontu, szarża kardynalna + ogłuszenie 2s po uderzeniu w bandę)
   _updateBlackRook(e, dt, panicMult, bounds) {
     const p = this.player;
-    const moveScale = e.pinnedTimer > 0 ? 0 : 1;
+    const mateSlow = e.mateStep === 2 ? 0.5 : 1.0;
+    const moveScale = e.pinnedTimer > 0 ? 0 : mateSlow;
 
     if (e.state === 'stunned') {
       e.stunTimer -= dt;
@@ -2359,7 +2363,7 @@ export class Game {
         AudioEngine.playTelegraphWarn();
       }
     } else if (e.state === 'telegraph') {
-      e.stateTimer -= dt;
+      e.stateTimer -= dt * (e.mateStep === 1 ? 0.7 : 1.0);
       e.scaleX = 1.25;
       e.scaleY = 0.78;
       if (e.stateTimer <= 0) {
@@ -2395,7 +2399,8 @@ export class Game {
     const dy = p.y - e.y;
     const dist = Math.hypot(dx, dy) || 1;
     const bossPinSlow = e.isPinned ? 0.6 : 1.0;
-    const moveScale = e.state === 'telegraph' ? 0 : bossPinSlow;
+    const bossMateSlow = e.mateStep === 2 ? 0.5 : 1.0;
+    const moveScale = e.state === 'telegraph' ? 0 : bossPinSlow * bossMateSlow;
 
     if (e.state !== 'telegraph') {
       e.x = clamp(
@@ -2436,7 +2441,7 @@ export class Game {
         AudioEngine.playTelegraphWarn();
       }
     } else if (e.state === 'telegraph') {
-      e.stateTimer -= dt;
+      e.stateTimer -= dt * (e.mateStep === 1 ? 0.7 : 1.0);
       e.scaleX = 1.05 + Math.sin(this.time * 24) * 0.12;
       e.scaleY = 0.95 - Math.sin(this.time * 24) * 0.12;
       if (e.stateTimer <= 0) {
@@ -2501,8 +2506,9 @@ export class Game {
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
       const qPinSlow = e.isPinned ? 0.6 : 1.0;
-      e.x = clamp(e.x + (dx / dist) * e.speed * qPinSlow * dt, bounds.left + 26, bounds.right - 26);
-      e.y = clamp(e.y + (dy / dist) * e.speed * qPinSlow * dt, bounds.top + 26, bounds.bottom - 26);
+      const qMateSlow = e.mateStep === 2 ? 0.5 : 1.0;
+      e.x = clamp(e.x + (dx / dist) * e.speed * qPinSlow * qMateSlow * dt, bounds.left + 26, bounds.right - 26);
+      e.y = clamp(e.y + (dy / dist) * e.speed * qPinSlow * qMateSlow * dt, bounds.top + 26, bounds.bottom - 26);
 
       e.stateTimer -= dt * panicMult;
       if (e.stateTimer <= 0) {
@@ -2515,7 +2521,7 @@ export class Game {
         AudioEngine.playTelegraphWarn();
       }
     } else if (e.state === 'telegraph') {
-      e.stateTimer -= dt;
+      e.stateTimer -= dt * (e.mateStep === 1 ? 0.7 : 1.0);
       e.scaleX = 0.8;
       e.scaleY = 1.25;
       if (e.stateTimer <= 0) {
@@ -2844,7 +2850,7 @@ export class Game {
               e.radius
             )
           ) {
-            if (e.type === 'rook' && e.state !== 'stunned' && e.frozenTimer <= 0) {
+            if (e.type === 'rook' && e.state !== 'stunned' && e.frozenTimer <= 0 && e.mateStep !== 2) {
               const hitFromAngle = Math.atan2(b.prevY - e.y, b.prevX - e.x);
               if (Math.abs(angleDiff(hitFromAngle, e.facingAngle)) < 1.2) {
                 this.pools.bullets.release(b);
@@ -3009,14 +3015,20 @@ export class Game {
     if (!e || !e.active) return;
     const isBoss = e.type === 'king' || e.type === 'black_queen';
     const stunBonus = e.type === 'rook' && e.state === 'stunned' ? 1.5 : 1.0;
-    // Czarny Król otrzymuje zredukowane obrażenia, dopóki żyją jego pionki-tarcze
-    const kingShieldResist = e.type === 'king' && this.kingShieldCount > 0 ? 0.5 : 1.0;
+    // Czarny Król otrzymuje zredukowane obrażenia, dopóki żyją jego pionki-tarcze (chyba że ominięte przez Mark II, TAC-08)
+    const kingShieldResist =
+      e.type === 'king' && this.kingShieldCount > 0 && e.mateStep !== 2 ? 0.5 : 1.0;
     const vulnMult = e.isPinned ? (e.pinVulnerability || 1.35) : 1.0;
     const finalDmg = dmg * stunBonus * kingShieldResist * vulnMult;
     e.hp -= finalDmg;
     e.hitFlash = 0.09;
     e.scaleX = 1.22;
     e.scaleY = 0.8;
+
+    // Aktualizacja kombinacji Szach i Mat (TAC-07, TAC-08)
+    if (!isShard) {
+      this._updateCheckmateCombo(e, dmg);
+    }
 
     const bounds = this.board.getBounds();
     const len = Math.hypot(bulletVx, bulletVy) || 1;
@@ -3254,6 +3266,40 @@ export class Game {
       this.lastForkHitEnemy = e;
       this.lastForkHitTime = now;
     }
+  }
+
+  // Kombinacja Szach i Mat: Mark I ("SZACH!"), Mark II ("SZACH PODWÓJNY!") i Detonacja (TAC-07, TAC-08, TAC-09)
+  _updateCheckmateCombo(e, dmg) {
+    if (!e || !e.active || e.hp <= 0) return;
+    const now = this.time;
+    // Ochrona przed spamem shotgun/wielu pocisków: min. 0.25s między kolejnymi stopniami
+    if (e.lastComboHitTime && now - e.lastComboHitTime < 0.25) {
+      return;
+    }
+    e.lastComboHitTime = now;
+
+    if (e.mateStep === 0 || e.mateTimer <= 0) {
+      // TAC-07: Krok 1 - "SZACH!" na 4.0s (-30% prędkości ładowania telegrafu)
+      e.mateStep = 1;
+      e.mateTimer = 4.0;
+      this.spawnFloatingText('SZACH!', e.x, e.y - 24, '#ffaa44', 1.15);
+      AudioEngine.playCheckShout();
+      this.triggerHitstop(0.02);
+    } else if (e.mateStep === 1) {
+      // TAC-08: Krok 2 - "SZACH PODWÓJNY!" na 4.0s (-50% prędkości ruchu, ominięcie pancerza)
+      e.mateStep = 2;
+      e.mateTimer = 4.0;
+      this.spawnFloatingText('SZACH PODWÓJNY!', e.x, e.y - 26, '#ff5533', 1.25);
+      AudioEngine.playCheckShout();
+      this.triggerHitstop(0.035);
+    } else if (e.mateStep === 2) {
+      // TAC-09: Krok 3 - "SZACH-MAT!" Detonacja (implementacja w T7)
+      this._triggerCheckmateDetonation(e, dmg);
+    }
+  }
+
+  _triggerCheckmateDetonation(e, dmg) {
+    // Implementacja w zadaniu T7
   }
 
   damagePlayer(dmg, sourceX, sourceY) {

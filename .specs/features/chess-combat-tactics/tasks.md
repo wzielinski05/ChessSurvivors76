@@ -186,9 +186,9 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Hit 1 applies Mark I with telegraph slowdown for 4.0s
-- [ ] Hit 2 within 4.0s upgrades to Mark II with 50% movement slow
-- [ ] Gate check passes: `npm run build`
+- [x] Hit 1 applies Mark I with telegraph slowdown for 4.0s
+- [x] Hit 2 within 4.0s upgrades to Mark II with 50% movement slow
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick
