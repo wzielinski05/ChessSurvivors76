@@ -208,9 +208,9 @@ T8
 - Skill: NONE
 
 **Done when**:
-- [ ] Third hit executes Checkmate Detonation dealing massive burst and wiping nearby enemy bullets
-- [ ] Successful Checkmate adds +2.0s to Chess Clock
-- [ ] Gate check passes: `npm run build`
+- [x] Third hit executes Checkmate Detonation dealing massive burst and wiping nearby enemy bullets
+- [x] Successful Checkmate adds +2.0s to Chess Clock
+- [x] Gate check passes: `npm run build`
 
 **Tests**: integration
 **Gate**: quick

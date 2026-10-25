@@ -3298,8 +3298,52 @@ export class Game {
     }
   }
 
-  _triggerCheckmateDetonation(e, dmg) {
-    // Implementacja w zadaniu T7
+  // Detonacja Szach-Mat: potężny finiszer, czyszczenie pocisków w promieniu 200px i bonus czasu (TAC-09)
+  _triggerCheckmateDetonation(e, baseDmg = 2.0) {
+    if (!e || !e.active) return;
+    const isBoss = e.type === 'king' || e.type === 'black_queen';
+
+    // 1. Obliczenie obrażeń finiszera: 400% weapon damage + 25% max HP (boss capped at 250) (TAC-09)
+    let finisherDmg = baseDmg * 4.0 + (e.maxHp || 1) * 0.25;
+    if (isBoss && finisherDmg > 250) {
+      finisherDmg = 250;
+    }
+
+    // 2. Reset combo
+    e.mateStep = 0;
+    e.mateTimer = 0;
+
+    // 3. Kasowanie pocisków wrogów w promieniu 200px (TAC-09)
+    const wipeRadius = 200;
+    const wipeRadiusSq = wipeRadius * wipeRadius;
+    const bullets = this.pools.bullets.items;
+    const bSize = this.pools.bullets.size;
+    let wipedCount = 0;
+    for (let i = 0; i < bSize; i++) {
+      const b = bullets[i];
+      if (b.active && b.isEnemy && distSq(e.x, e.y, b.x, b.y) <= wipeRadiusSq) {
+        this.pools.bullets.release(b);
+        wipedCount++;
+      }
+    }
+    if (wipedCount > 0) {
+      this.spawnParticles(e.x, e.y, Math.min(24, wipedCount * 3), '#ffdd44', 60, 200);
+    }
+
+    // 4. Inkrement Zegara Szachowego: +2.0s (TAC-09)
+    this.addClockIncrement(2.0, e.x, e.y);
+
+    // 5. Efekty audiowizualne
+    this.spawnShockwaveRing(e.x, e.y, wipeRadius, '#ffdd44', 0.45);
+    this.spawnParticles(e.x, e.y, 28, '#ffdd44', 90, 280);
+    this.spawnParticles(e.x, e.y, 16, '#ffffff', 110, 220);
+    this.spawnFloatingText('SZACH-MAT!', e.x, e.y - 38, '#ffdd44', 1.4);
+    AudioEngine.playPieceShatter();
+    this.addTrauma(0.65);
+    this.triggerHitstop(0.06);
+
+    // 6. Zadanie obrażeń finiszera (isShard = true zapobiega rekurencyjnemu combo)
+    this.damageEnemy(e, finisherDmg, 0, 0, true, true);
   }
 
   damagePlayer(dmg, sourceX, sourceY) {
